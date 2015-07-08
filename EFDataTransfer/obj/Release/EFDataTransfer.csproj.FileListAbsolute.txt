@@ -1,0 +1,4 @@
+C:\Users\lws\documents\visual studio 2013\Projects\EFDataTransfer\EFDataTransfer\bin\Release\EFDataTransfer.exe
+C:\Users\lws\documents\visual studio 2013\Projects\EFDataTransfer\EFDataTransfer\bin\Release\EFDataTransfer.pdb
+C:\Users\lws\documents\visual studio 2013\Projects\EFDataTransfer\EFDataTransfer\obj\Release\EFDataTransfer.exe
+C:\Users\lws\documents\visual studio 2013\Projects\EFDataTransfer\EFDataTransfer\obj\Release\EFDataTransfer.pdb
