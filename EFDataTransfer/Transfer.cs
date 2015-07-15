@@ -11,14 +11,24 @@ namespace EFDataTransfer
     public class Transfer
     {
         private DataAccess _dataAccess;
+        private string dbCurrentDB;
 
         public Transfer()
         {
             //_dataAccess = new DataAccess("Data Source=tcp:x4erdsx1dl.database.windows.net,1433;Initial Catalog=putsa_db;User ID=efits@x4erdsx1dl;Password=Kn4ck3br0d");
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
+            //Proddatabasen
+            //dbCurrentDB = "eriks_test_db";
+
+            //Testdatabasen. Just nu är de omvända, så försiktighet tack!!
+            dbCurrentDB = "putsa_db";
+
+            SqlStrings.dbToUse = dbCurrentDB;
+
+
         }
 
-        public void Addresses()
+        private void Addresses()
         {
             var twAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWAddresses);
             var postalCodeModels = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPostalCodeModels);
@@ -64,7 +74,7 @@ namespace EFDataTransfer
 
                 checkInt++;
                 if (checkInt % 1000 == 0)
-                    Console.WriteLine(checkInt + " av " + twAddresses.Rows.Count + " rader lästa");
+                    Console.WriteLine(checkInt + " of " + twAddresses.Rows.Count + " rows finished...");
 
                 int postalCodeModelId = 0;
 
@@ -171,7 +181,7 @@ namespace EFDataTransfer
                 }
 
                 var postalAddressModels = _dataAccess.SelectIntoTable(string.Format(
-                    "SELECT Id FROM putsa_db.dbo.PostalAddressModels WHERE PostalCodeModelId = '{0}' AND StreetNo = '{1}'", postalCodeModelId, streetNo));
+                    "SELECT Id FROM " + dbCurrentDB + ".dbo.PostalAddressModels WHERE PostalCodeModelId = '{0}' AND StreetNo = '{1}'", postalCodeModelId, streetNo));
 
                 bool isDelivery = (Convert.ToString(row["is_delivery"]) == "Y") || (Convert.ToInt32(row["route_num"]) > 0 && Convert.ToInt32(row["workarea_id"]) > 0);
                 bool isInvoice = Convert.ToString(row["is_invoice"]) == "Y";
@@ -223,38 +233,109 @@ namespace EFDataTransfer
             }
 
             //Console.WriteLine("Inserting " + cleaningObjects.Rows.Count + " cleaning objects...");
-            _dataAccess.InsertMany("putsa_db.dbo.CleaningObjects", cleaningObjects, true, coMappings);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.CleaningObjects", cleaningObjects, true, coMappings);
 
             //Console.WriteLine("Inserting " + persons.Rows.Count + " person to address connections...");
-            _dataAccess.InsertMany("putsa_db.dbo.PersonPostalAddressModels", persons, false, pMappings);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.PersonPostalAddressModels", persons, false, pMappings);
         }
 
-        public void Persons()
+        /* Main routine for doing the actual transfer */
+        public void TransferData(string tableName)
         {
-            _dataAccess.NonQuery(SqlStrings.TransferClients);
+            switch (tableName.ToUpper())
+            {
+                case "PERSONS":
+                    _dataAccess.NonQuery(SqlStrings.TransferClients);
+                    break;
+                case "SETTINGS":
+                    Settings();
+                    break;
+                case "POSTALADDRESSMODELS":
+                    Console.WriteLine("Start of correcting postalcodes in old table...");
+                    FixPostalCodes();
+                    Console.WriteLine("End of correcting postalcodes.");
+                    Console.WriteLine("Transferring addresses...");
+                    Addresses();
+                    break;
+                case "CONTACTS":
+                    _dataAccess.NonQuery(SqlStrings.TransferContacts);
+                    Console.WriteLine("Updating Contacts with RUT...");
+                    SetRUT();
+                    break;
+                case "CUSTOMERS":
+                    _dataAccess.NonQuery(SqlStrings.TransferCustomers);
+                    Console.WriteLine("Connecting Customers to CleaningObjects...");
+                    ConnectCustomersToCleaningObjects();
+                    break;
+                case "BANKS":
+                    _dataAccess.NonQuery(SqlStrings.TransferBanks);
+                    Console.WriteLine("Connecting Banks to customers...");
+                    _dataAccess.NonQuery(SqlStrings.ConnectBanksToCustomers);
+                    break;
+                case "SCHEDULES":
+                    SchedulesAndPeriods();
+                    break;
+                case "WORKERS":
+                    _dataAccess.NonQuery(SqlStrings.TransferWorkers);
+                    break;
+                case "VEHICLES":
+                    _dataAccess.NonQuery(SqlStrings.TransferVehicles);
+                    Console.WriteLine("Updating Vehicles with hardcoded values...");
+                    _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
+                    break;
+                case "TEAMS":
+                    _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
+                    Console.WriteLine("Connect Workers with Team...");
+                    _dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
+                    Console.WriteLine("Connecting teams to cleaning objects...");
+                    ConnectTeamsToCleaningObjects();
+                // Samtliga putsobjekt som inte får teamId av ovanstående har i TW-tabellen workarea_id = 0, vilket jag antar betyder att de inte är kopplade
+                    break;
+                case "ACCOUNTS":
+                    _dataAccess.NonQuery(SqlStrings.InsertAccounts);
+                    break;
+                case "SUBCATEGORIES":
+                    _dataAccess.NonQuery(SqlStrings.InsertSubCategories);
+                    break;
+                case "SERVICES":
+                    _dataAccess.NonQuery(SqlStrings.TransferServices);
+                    break;
+                case "SUBSCRIPTIONS":
+                    Subscriptions();
+                    break;
+                case "SUBSCRIPTIONSERVICES": //SubscriptionServices
+                    SubscriptionServices();
+                    break;
+                case "CLEANINGOBJECTPRICES":
+                    SubscriptionPrices();
+                    break;
+                case "ISSUES":
+                    NotesAndIssues();
+                    break;
+                default:
+                    break;
+            }
         }
 
-        public void Contacts()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferContacts);
-        }
+ 
 
-        public void ConnectCustomersToCleaningObjects()
+        private void ConnectCustomersToCleaningObjects()
         {
-            _dataAccess.NonQuery(SqlStrings.TransferCustomers);
+            
             _dataAccess.NonQuery(SqlStrings.ConnectCustomersToCleaningObjects);
             _dataAccess.NonQuery(SqlStrings.InsertContactsWhereNeeded);
         }
 
-        public void ConnectTeamsToCleaningObjects()
+        private void ConnectTeamsToCleaningObjects()
         {
             var twWorkAreas = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkAreas);
-            var schedules = _dataAccess.SelectIntoTable("SELECT Id, Name FROM putsa_db.dbo.Schedules");
+            var schedules = _dataAccess.SelectIntoTable("SELECT Id, Name FROM " + dbCurrentDB + ".dbo.Schedules");
+            int checkInt = 0;
 
             foreach (DataRow row in twWorkAreas.Rows)
             {
                 int teamId = Convert.ToInt32(_dataAccess.SelectIntoTable(
-                    string.Format("SELECT t.Id AS Id FROM putsa_db.dbo.Teams t JOIN putsa_db.dbo.Vehicles v ON v.Id = t.VehicleId WHERE v.Notes = '{0}'", row["name"])).Rows[0]["Id"]);
+                    string.Format("SELECT t.Id AS Id FROM " + dbCurrentDB + ".dbo.Teams t JOIN " + dbCurrentDB + ".dbo.Vehicles v ON v.Id = t.VehicleId WHERE v.Notes = '{0}'", row["name"])).Rows[0]["Id"]);
 
                 //int tempTeamId = 0;
 
@@ -306,7 +387,7 @@ namespace EFDataTransfer
 
                 //foreach (DataRow idRow in coIds.Rows)
                 //{
-                _dataAccess.NonQuery(string.Format("UPDATE putsa_db.dbo.CleaningObjects SET TeamId = {0} WHERE Id = {1}", teamId, row["Id"])); //idRow["Id"]));
+                _dataAccess.NonQuery(string.Format("UPDATE " + dbCurrentDB + ".dbo.CleaningObjects SET TeamId = {0} WHERE Id = {1}", teamId, row["Id"])); //idRow["Id"]));
                 //}
 
                 //var pcmIds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodeModelIdsBy(address, Convert.ToInt32(row["postalcode_fixed"]), Convert.ToString(row["city"]).ToUpper()));
@@ -320,6 +401,10 @@ namespace EFDataTransfer
                 //}
 
                     _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
+                    checkInt++;
+                    if (checkInt % 1000 == 0)
+                        Console.WriteLine(checkInt + " of " + twWorkAreas.Rows.Count + " rows finished...");
+
             }
 
             // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
@@ -333,25 +418,17 @@ namespace EFDataTransfer
             //}
         }
 
-        public void CreateTeamsAndConnectToVehicles()
-        {
-            _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
-        }
-
-        public void ConnectWorkersToTeams()
-        {
-            _dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
-        }
+ 
 
         public void CreateTeamUsers()
         {
             _dataAccess.NonQuery(SqlStrings.CreateUsersForTeams);
         }
 
-        public void SetRUT()
+        private void SetRUT()
         {
             _dataAccess.NonQuery(SqlStrings.SetRUT);
-            _dataAccess.NonQuery("UPDATE putsa_db.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM Persons WHERE NoPersonalNoValidation = 1)");
+            _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Persons WHERE NoPersonalNoValidation = 1)");
         }
 
         public void Employees()
@@ -359,12 +436,8 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.TransferEmployees);
         }
 
-        public void Workers()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferWorkers);
-        }
-
-        public void SchedulesAndPeriods()
+  
+        private void SchedulesAndPeriods()
         {
             var interludes = _dataAccess.SelectIntoTable(SqlStrings.SelectTWInterludes);
 
@@ -404,10 +477,10 @@ namespace EFDataTransfer
                     interlude["id"], scheduleId, interlude["weekFrom"], Convert.ToInt32(interlude["weekFrom"]) + 1, Convert.ToDateTime(interlude["startdate"]), interlude["period"] });
             }
 
-            _dataAccess.InsertMany("putsa_db.dbo.Periods", periods, true, mapping);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Periods", periods, true, mapping);
         }
 
-        public void Settings()
+        private void Settings()
         {
             var settings = new DataTable();
             settings.Columns.AddRange(new DataColumn[] {
@@ -430,10 +503,10 @@ namespace EFDataTransfer
             settings.Rows.Add(new object[] { "ReminderTaxReductionText", "Text om att skattereduktion avvisas\nRad1\nRad2\nRad3" });
             settings.Rows.Add(new object[] { "ReminderDebtCollectionText", "Inkassotext\nRad1\nRad2" });
 
-            _dataAccess.InsertMany("putsa_db.dbo.Settings", settings, false, mapping);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Settings", settings, false, mapping);
         }
 
-        public void Subscriptions()
+        private void Subscriptions()
         {
             var twServices = _dataAccess.SelectIntoTable(SqlStrings.SelectTWServices);
             int serviceGroupId = _dataAccess.InsertSingle(SqlStrings.InsertIntoServiceGroups);
@@ -453,7 +526,7 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("ServiceGroupId", "ServiceGroupId")
             };
 
-            _dataAccess.InsertMany("putsa_db.dbo.Prices", prices, false, mapping);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Prices", prices, false, mapping);
 
             var twWorkOrders = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrders);
 
@@ -464,7 +537,7 @@ namespace EFDataTransfer
                 new DataColumn("IsInactive", typeof(bool))
             });
 
-            int prevId = 0;
+            
             foreach (DataRow row in twWorkOrders.Rows)
             {
                 //int caId = Convert.ToInt32(row["caId"]);
@@ -475,11 +548,11 @@ namespace EFDataTransfer
                 //prevId = caId;
             }
 
-            _dataAccess.InsertMany("putsa_db.dbo.Subscriptions", subscriptions, true, null);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Subscriptions", subscriptions, true, null);
             _dataAccess.NonQuery(SqlStrings.SetSubscriptionsInActive);
         }
 
-        public void SubscriptionPrices()
+        private void SubscriptionPrices()
         {
             var twWorkOrderPrices = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrderPrices);
 
@@ -513,10 +586,10 @@ namespace EFDataTransfer
                 coPrices.Rows.Add(new object[] { coId, Convert.ToInt32(row["ServiceId"]), mod, Convert.ToString(row["wolDesc"]) });
             }
 
-            _dataAccess.InsertMany("putsa_db.dbo.CleaningObjectPrices", coPrices, false, mappings);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.CleaningObjectPrices", coPrices, false, mappings);
         }
 
-        public void SubscriptionServices()
+        private void SubscriptionServices()
         {
             var twWorkOrderLines = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrderLines);
             var subscriptionServices = new DataTable();
@@ -578,16 +651,11 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
             };
 
-            _dataAccess.InsertMany("putsa_db.dbo.SubscriptionServices", subscriptionServices, false, mappings);
+            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
         }
 
-        public void Vehicles()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferVehicles);
-
-        }
-
-        public void FixPostalCodes()
+    
+        private void FixPostalCodes()
         {
             var twClientAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWClientAddresses);
             
@@ -608,7 +676,7 @@ namespace EFDataTransfer
                     postalCode = orgPostalCode;
                 else
                 {
-                    Console.WriteLine("Fel på rad " + row["id"]);
+                    Console.WriteLine("Kunde inte korrigera rad med id: " + row["id"]);
                 }
 
 
@@ -618,44 +686,48 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery(SqlStrings.PostalCodeFixUpdate(Convert.ToInt32(row["id"]), int.Parse(postalCode)));
                 }
                 else
-                    Console.WriteLine("Fel på rad " + row["id"]);
+                    Console.WriteLine("Kunde inte korrigera rad med id: " + row["id"]);
             }
         }
 
-        public void UpdateVehicles()
-        {
-            _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
-        }
+ 
 
         public void UtilityTables()
         {
-            if (_dataAccess.SelectIntoTable("SELECT Id FROM putsa_db.dbo.TableLocks").Rows.Count == 0)
+            string sqlTemp;
+
+            sqlTemp="SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks ON INSERT INTO " + dbCurrentDB + ".dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks OFF";
+
+            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.TableLocks").Rows.Count == 0)
                 _dataAccess.NonQuery(
-                    @"SET IDENTITY_INSERT putsa_db.dbo.TableLocks ON 
-                    INSERT INTO putsa_db.dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) 
-                    SET IDENTITY_INSERT putsa_db.dbo.TableLocks OFF");
-            if (_dataAccess.SelectIntoTable("SELECT Id FROM putsa_db.dbo.NextInvoiceNumbers").Rows.Count == 0)
+                    @sqlTemp);
+
+            sqlTemp = "SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers ON INSERT INTO " + dbCurrentDB + ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers OFF";
+
+            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.NextInvoiceNumbers").Rows.Count == 0)
                 _dataAccess.NonQuery(
-                    @"SET IDENTITY_INSERT putsa_db.dbo.NextInvoiceNumbers ON 
-                    INSERT INTO putsa_db.dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1)
-                    SET IDENTITY_INSERT putsa_db.dbo.NextInvoiceNumbers OFF");
+                    @sqlTemp);
         }
 
-        public void NotesAndIssues()
+        private void NotesAndIssues()
         {
-            Console.WriteLine("'Första beställningsdatum': " + _dataAccess.SelectIntoTable(@"SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
-                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate,
-                        CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
-                        clientnbr AS CustomerId, 
-                        7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
-                    JOIN putsa_db.dbo.Customers c on c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND header LIKE 'Inlagddatum'
-                    AND n.deleted = 'N'
-                    AND cli.deleted = 'N'
-                    AND clientnbr IS NOT NULL").Rows.Count);
+            string sqlTemp;
+
+            sqlTemp= "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
+                     + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
+                     + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
+                     + "clientnbr AS CustomerId, "
+                     + "7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private "
+                     + "FROM eriks_migration.dbo.TW_notes n "
+                     + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
+                     + "JOIN " + dbCurrentDB + ".dbo.Customers c on c.Id = cli.clientnbr "
+                     + "WHERE table_name = 'clients' "
+                     + "AND header LIKE 'Inlagddatum' "
+                     + "AND n.deleted = 'N' "
+                     + "AND cli.deleted = 'N' "
+                     + "AND clientnbr IS NOT NULL";
+
+            Console.WriteLine("'Första beställningsdatum': " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCustomerAddedNotes);
 
@@ -672,17 +744,18 @@ namespace EFDataTransfer
 
             _dataAccess.NonQuery(SqlStrings.TransferEconomyNotes);
 
-            Console.WriteLine("'Ekonomianteckning kund: " + _dataAccess.SelectIntoTable(@"SELECT n.id AS Id, header AS Title, content AS [Description], 
-	                    CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END 
-	                    AS [Status], 0 AS [Priority], CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        5 AS IssueType, clientnbr AS CustomerId, 
-                        CASE WHEN n.created_by_id <> -1 THEN n.created_by_id ELSE NULL END AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
-                    JOIN putsa_db.dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND notetype_id = '5'
-                    AND n.deleted = 'N'").Rows.Count);
+            sqlTemp = "SELECT n.id AS Id, header AS Title, content AS [Description], CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END "
+                    + "AS [Status], 0 AS [Priority], CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
+                    + "5 AS IssueType, clientnbr AS CustomerId, "
+                    + "CASE WHEN n.created_by_id <> -1 THEN n.created_by_id ELSE NULL END AS CreatorId, 0 AS Private "
+                    + "FROM eriks_migration.dbo.TW_notes n "
+                    + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
+                    + "JOIN " + dbCurrentDB + ".dbo.Customers c ON c.Id = cli.clientnbr "
+                    + "WHERE table_name = 'clients' "
+                    + "AND notetype_id = '5' "
+                    + "AND n.deleted = 'N'";
+
+            Console.WriteLine("'Ekonomianteckning kund: " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferEconomyCustomerNotes);
 
@@ -692,10 +765,15 @@ namespace EFDataTransfer
             var twInfos = _dataAccess.SelectIntoTable(SqlStrings.SelectTWCleaningObjectInfoBefore);
 
             int currentCleaningObjectId = 0;
+            int checkInt=0;
             string info = string.Empty;
+
+            checkInt = 0;
 
             foreach (DataRow row in twInfos.Rows)
             {
+
+
                 int nextCleaningObjectId = Convert.ToInt32(row["CleaningObjectId"]);
 
                 if (nextCleaningObjectId != currentCleaningObjectId)
@@ -710,6 +788,11 @@ namespace EFDataTransfer
                 }
 
                 _dataAccess.NonQuery(SqlStrings.UpdateCleaningObjectInfoBefore(currentCleaningObjectId, info));
+
+                checkInt++;
+                if (checkInt % 1000 == 0)
+                    Console.WriteLine(checkInt + " of " + twInfos.Rows.Count + " rows finished...");
+
             }
 
             Console.WriteLine("Setting 'InfoDuringCleaning'");
@@ -718,6 +801,7 @@ namespace EFDataTransfer
 
             currentCleaningObjectId = 0;
             info = string.Empty;
+            checkInt = 0;
 
             foreach (DataRow row in twInfosDuring.Rows)
             {
@@ -735,6 +819,11 @@ namespace EFDataTransfer
                 }
 
                 _dataAccess.NonQuery(SqlStrings.UpdateCleaningObjectInfoDuring(currentCleaningObjectId, info));
+
+                checkInt++;
+                if (checkInt % 1000 == 0)
+                    Console.WriteLine(checkInt + " of " + twInfosDuring.Rows.Count + " rows finished...");
+
             }
 
             Console.WriteLine("Setting remaining 'InfoBeforeCleaning'");
@@ -745,15 +834,17 @@ namespace EFDataTransfer
             ////Console.WriteLine("Transferring notes and issues");
             ////////////////_dataAccess.NonQuery(SqlStrings.TransferCleaningObjectNotes);
 
-            Console.WriteLine("Vanliga anteckningar Objekt Tillval: " + _dataAccess.SelectIntoTable(@" SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    wo.delivery_clientaddress_id AS CleaningObjectId,
-	                    7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%'
-                    AND notes.deleted = 'N'").Rows.Count);
+            sqlTemp = " SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], "
+	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,"
+	                + "wo.delivery_clientaddress_id AS CleaningObjectId,"
+	                + "7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority "
+                    + "FROM eriks_migration.dbo.TW_notes AS notes " 
+                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
+                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
+                    + "WHERE table_name = 'workorders' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%' "
+                    + "AND notes.deleted = 'N'";
+
+            Console.WriteLine("Vanliga anteckningar Objekt Tillval: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferMoreCleaningObjectNotes);
 
@@ -764,42 +855,48 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_notes AS notes  
                     JOIN eriks_migration.dbo.TW_clients AS cli on notes.table_id = cli.id
                     WHERE table_name = 'clients' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%' AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)  ").Rows.Count);
+                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCustomerNotes);
 
-            Console.WriteLine("Vanliga anteckningar Beställning: " + _dataAccess.SelectIntoTable(@"    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 2 AS [Status],
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE 'BESTÄLLNING' AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues) ").Rows.Count);
+            sqlTemp = "SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 2 AS [Status], "
+	                 + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,"
+	                 + "created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority "
+                     + "FROM eriks_migration.dbo.TW_notes AS notes " 
+                     + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
+                     + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
+                     + "WHERE table_name = 'workorders' AND notes.header LIKE 'BESTÄLLNING' AND notes.deleted = 'N' "
+                     + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues) ";
+
+            Console.WriteLine("Vanliga anteckningar Beställning: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectOrders);
 
-            Console.WriteLine("Vanliga anteckningar Telefonhistorik: " + _dataAccess.SelectIntoTable(@" SELECT notes.id AS Id, header AS Title, content AS [Description], 
-	                    CASE WHEN notes.deleted = 'N' THEN 4 ELSE 2 END AS [Status],  
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE 'telefonhistorik' AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)  ").Rows.Count);
+            sqlTemp = "SELECT notes.id AS Id, header AS Title, content AS [Description], "
+	                + "CASE WHEN notes.deleted = 'N' THEN 4 ELSE 2 END AS [Status], "  
+	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate, "
+	                + "wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, 0 AS Private, 0 AS Priority "
+                    + "FROM eriks_migration.dbo.TW_notes AS notes  "
+                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
+                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
+                    + "WHERE table_name = 'workorders' AND notes.header LIKE 'telefonhistorik' AND notes.deleted = 'N' "
+                    + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ";
+
+            Console.WriteLine("Vanliga anteckningar Telefonhistorik: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCustomerTelephoneNotes);
 
-            Console.WriteLine("Vanliga anteckningar Husbeskrivning: " + _dataAccess.SelectIntoTable(@"  SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 
-	                    CASE WHEN notes.deleted ='N' THEN 2 ELSE 4 END AS [Status],
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    created_by_id AS CreatorId, 7 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
-                     FROM eriks_migration.dbo.TW_notes AS notes 
-                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                     WHERE table_name = 'workorders' AND notes.header LIKE 'HUSBESKRIVNING' AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)  ").Rows.Count);
+             sqlTemp ="SELECT notes.id AS Id, notes.header AS Title, content AS [Description], "
+	                + "CASE WHEN notes.deleted ='N' THEN 2 ELSE 4 END AS [Status], "
+	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate, "
+	                + "created_by_id AS CreatorId, 7 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority "
+                    + "FROM eriks_migration.dbo.TW_notes AS notes  "
+                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
+                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
+                    + "WHERE table_name = 'workorders' AND notes.header LIKE 'HUSBESKRIVNING' AND notes.deleted = 'N' "
+                    + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ";
+
+            Console.WriteLine("Vanliga anteckningar Husbeskrivning: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectDescriptions);
 
             Console.WriteLine("Uppsägningar kund: " + _dataAccess.SelectIntoTable(@" SELECT DISTINCT notes.id AS Id, 'Uppsägning' AS Title, content AS [Description], 4 AS [Status],
@@ -810,7 +907,7 @@ namespace EFDataTransfer
                     WHERE table_name = 'clients' 
                     AND content <> ''
                     AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)").Rows.Count);
+                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCustomerCancellations);
 
@@ -819,9 +916,9 @@ namespace EFDataTransfer
                         0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType
                     FROM eriks_migration.dbo.TW_notes n 
                     JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                     WHERE table_name = 'workorders' AND notetype_id = 1 AND n.deleted = 'N' AND important = 'Y' AND 
-                    n.content LIKE '%UPPSAGD%'     AND n.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)  
+                    n.content LIKE '%UPPSAGD%'     AND n.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
                     ORDER BY table_id").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferMoreCancellations);
@@ -831,11 +928,11 @@ namespace EFDataTransfer
 	                    wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
                     FROM eriks_migration.dbo.TW_notes AS notes 
                     JOIN eriks_migration.dbo.TW_workorders wo ON wo.id = notes.table_id
-                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                     WHERE table_name = 'workorders' 
                     AND content <> ''
                     AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)").Rows.Count);
+                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectCancellations);
 
@@ -844,9 +941,9 @@ namespace EFDataTransfer
                     wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
                 FROM eriks_migration.dbo.TW_notes AS notes 
                 JOIN eriks_migration.dbo.TW_workorders AS wo on wo.id = notes.table_id
-                JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                 WHERE table_name = 'workorders' AND notes.deleted = 'N'
-                AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)
+                AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
                 AND notes.header IN ('%TELEFON%','%Kundhistorik%','%info_BV%','%MAIL%','%info tillval%','%info faktura%','%special%','%Anm%','%Info%')").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferEvenMoreCleaningObjectNotes);
@@ -856,35 +953,24 @@ namespace EFDataTransfer
 	                    cli.clientnbr AS CustomerId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
                     FROM eriks_migration.dbo.TW_notes AS notes 
                     JOIN eriks_migration.dbo.TW_clients AS cli ON cli.id = notes.table_id
-                    JOIN putsa_db.dbo.Customers c ON c.Id = cli.clientnbr
+                    JOIN " + dbCurrentDB + @".dbo.Customers c ON c.Id = cli.clientnbr
                     WHERE table_name = 'clients'
                     AND notes.deleted = 'N'
                     AND notes.header IN ('TELEFON','Kundhistorik','info_BV','MAIL','info tillval','info faktura','special','Anm', 'Info')
-                    AND notes.id NOT IN (SELECT Id FROM putsa_db.dbo.Issues)").Rows.Count);
+                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferMoreCustomerNotes);
         }
 
-        public void Accounts()
-        {
-            _dataAccess.NonQuery(SqlStrings.InsertAccounts);
-        }
-
-        public void SubCategories()
-        {
-            _dataAccess.NonQuery(SqlStrings.InsertSubCategories);
-        }
-
-        public void Services()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferServices);
-        }
+  
+  
 
         internal void MergeSubscriptions()
         {
-            var subscriptions = _dataAccess.SelectIntoTable("SELECT * FROM putsa_db.dbo.Subscriptions");
+            var subscriptions = _dataAccess.SelectIntoTable("SELECT * FROM " + dbCurrentDB + ".dbo.Subscriptions");
 
             int subIdToChange = 0;
+            int checkInt = 0;
 
             foreach(DataRow row in subscriptions.Rows)
             {
@@ -898,26 +984,36 @@ namespace EFDataTransfer
                     {
                         subIdToChange = Convert.ToInt32(subIdToChangeTbl.Rows[0]["Id"]);
                         _dataAccess.NonQuery(SqlStrings.UpdateSubscriptionServiceSubscriptionIds(subIdToSet, subIdToChange));
-                        _dataAccess.NonQuery("DELETE FROM putsa_db.dbo.Subscriptions WHERE Id = " + subIdToChange);
+                        _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE Id = " + subIdToChange);
                     }
                 }
+                checkInt++;
+                if (checkInt % 1000 == 0)
+                    Console.WriteLine(checkInt + " of " + subscriptions.Rows.Count + " rows finished...");
+
             }
         }
 
-        public void DeleteTable(string table)
+        public void DeleteTable(string refTable,string refFieldToClean,string table)
         {
-            _dataAccess.NonQuery("DELETE FROM putsa_db.dbo." + table);
+            if (refFieldToClean.Length>1)
+            {
+                if(refTable.Length>1)
+                {
+                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo." + refTable + " SET " + refFieldToClean + " = Null");
+                }
+            }
+            _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo." + table);
         }
 
-        public void TransferAndConnectBanks()
+        private void TransferAndConnectBanks()
         {
-            _dataAccess.NonQuery(SqlStrings.TransferBanks);
-            _dataAccess.NonQuery(SqlStrings.ConnectBanksToCustomers);
+
         }
 
         internal void TruncateTable(string table)
         {
-            _dataAccess.NonQuery("TRUNCATE TABLE putsa_db.dbo." + table);
+            _dataAccess.NonQuery("TRUNCATE TABLE " + dbCurrentDB + ".dbo." + table);
         }
     }
 }

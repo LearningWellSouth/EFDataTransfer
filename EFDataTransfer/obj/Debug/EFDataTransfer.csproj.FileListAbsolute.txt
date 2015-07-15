@@ -10,3 +10,8 @@ C:\Users\Jesper\Documents\Visual Studio 2013\Projects\EFDataTransfer\EFDataTrans
 C:\Users\Jesper\Documents\Visual Studio 2013\Projects\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.csprojResolveAssemblyReference.cache
 C:\Users\Joakim\Documents\GitHub\EF_StoredProcedures\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.exe
 C:\Users\Joakim\Documents\GitHub\EF_StoredProcedures\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.pdb
+C:\Users\Joakim\Documents\GitHub\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.exe
+C:\Users\Joakim\Documents\GitHub\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.pdb
+C:\Users\Joakim\Documents\GitHub\EFDataTransfer\EFDataTransfer\bin\Debug\EFDataTransfer.exe
+C:\Users\Joakim\Documents\GitHub\EFDataTransfer\EFDataTransfer\bin\Debug\EFDataTransfer.pdb
+C:\Users\Joakim\Documents\GitHub\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.csprojResolveAssemblyReference.cache

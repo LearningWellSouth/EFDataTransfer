@@ -85,7 +85,7 @@ namespace EFDataTransfer
                 {
                     var table = new DataTable();
 
-                    adapter.SelectCommand.CommandTimeout = 120;
+                    adapter.SelectCommand.CommandTimeout = 300;
                     adapter.Fill(table);
 
                     return table;
@@ -109,6 +109,7 @@ namespace EFDataTransfer
 
                 using (var cmd = new SqlCommand(command, _connection))
                 {
+                    cmd.CommandTimeout = 300;
                     cmd.ExecuteNonQuery();
                 }
             }
