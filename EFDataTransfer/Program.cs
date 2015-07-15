@@ -170,11 +170,11 @@ namespace EFDataTransfer
                  */
 
                 //Console.WriteLine("Transferring users...");
-                //transferrer.Employees();
+                transferrer.Employees();
 
 
                 //Console.WriteLine("Creating team users...");
-                //transferrer.CreateTeamUsers();
+                transferrer.CreateTeamUsers();
 
                 Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
                 Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");

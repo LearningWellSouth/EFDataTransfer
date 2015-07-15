@@ -302,10 +302,11 @@ namespace EFDataTransfer
 
         public static string TransferWorkers
         {
+            //Med role_id = 1 skapas endast anställda som är putsare. Kontorsanställda förs inte över som "arbetare" (de har Role_id = 4)
             get
             {
                 return @"
-                    INSERT INTO " + dbCurrentDB + @".dbo.Workers (UserId, PersonalNo, FirstName, LastName, WorkPhone, [Address], City, Zip, Email, StartDate, CurActive)
+                    INSERT INTO " + dbCurrentDB + @".dbo.Workers (UserId, PersonalNo, FirstName, LastName, PrivatePhone, [Address], City, Zip, Email, StartDate, CurActive)
                     SELECT id, persnbr, firstname, lastname, phone, [address], city, postalcode, email, CASE WHEN ctime IS NOT NULL THEN ctime ELSE GETDATE() END, 1
                     FROM eriks_migration.dbo.TW_employees WHERE deleted = 'N' AND role_id = 1
                 ";
@@ -965,23 +966,26 @@ namespace EFDataTransfer
             get
             {
                 return @"
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 811', Phone = '073-9105501', AgreementStartDate = '2014-11-05', AgreementEndDate = '2014-11-04', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 1;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 831', Phone = '073-9105502', AgreementStartDate = '2014-09-01', AgreementEndDate = '2014-09-28', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2013 where Id = 2;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LTW 037', Phone = '073-9105503', AgreementStartDate = '2014-09-03', AgreementEndDate = '2015-05-27', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 3;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 804', Phone = '073-9105504', AgreementStartDate = '2014-12-04', AgreementEndDate = '2014-12-03', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 4;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'KUH 840', Phone = '073-9105505', AgreementStartDate = '2014-12-01', AgreementEndDate = '2019-04-01', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2010 where Id = 5;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 959', Phone = '073-9105506', AgreementStartDate = '2014-09-01', AgreementEndDate = '2014-09-28', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2013 where Id = 6;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSW 662', Phone = '073-9105507', AgreementStartDate = '2014-12-01', AgreementEndDate = '2019-12-20', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 7;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'PZP 763', Phone = '073-9105508', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 8;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 795', Phone = '073-9105509', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 9;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LWB 564', Phone = '073-9105510', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2013 where Id = 10;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GDZ 634', Phone = '073-9105511', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2010 where Id = 11;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'KXG 587', Phone = '073-9105512', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 12;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DYC 836', Phone = '073-9105513', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 13;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HZR 182', Phone = '073-9105514', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 14;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'NTL 687', Phone = '073-9105515', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2011 where Id = 15;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 796', Phone = '-', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2013 where Id = 16;
-update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'HBZ 891', Phone = '-', Brand = 'Ford', VehicleModel = 'Transit', ManufacturingYear = 2013 where Id = 17;";
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'FAS 183', Phone = '0739-105501',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 1;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 831', Phone = '0739-105502',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 2;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LTW 037', Phone = '0739-105503',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 3;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MLK 024', Phone = '0739-105504',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 4;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'SHT 308', Phone = '0739-105505',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 5;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 959', Phone = '0739-105506',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 6;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MJJ 685', Phone = '0739-105507', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 7;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DCD 390', Phone = '0739-105508', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 8;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 795', Phone = '0739-105509', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 9;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LWB 564', Phone = '0739-105510', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 10;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 351', Phone = '0739-105511', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 11;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'KTA 390', Phone = '0739-105512', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 12;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 272', Phone = '0739-105513', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 13;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'EEM 176', Phone = '0739-105514', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 14;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 267', Phone = '0739-105515', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 15;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 796', Phone = '0739-105516', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 16;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 891', Phone = '0739-105517', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 17;
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LRD 526', Phone = '0739-105518', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 18;              
+update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 370', Phone = '0739-105519', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 19;
+update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105520', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 20;";
             }
         }
 
