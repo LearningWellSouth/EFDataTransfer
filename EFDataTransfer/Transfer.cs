@@ -18,10 +18,10 @@ namespace EFDataTransfer
             //_dataAccess = new DataAccess("Data Source=tcp:x4erdsx1dl.database.windows.net,1433;Initial Catalog=putsa_db;User ID=efits@x4erdsx1dl;Password=Kn4ck3br0d");
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
             //Proddatabasen
-            //dbCurrentDB = "eriks_test_db";
+            dbCurrentDB = "eriks_test_db";
 
             //Testdatabasen. Just nu är de omvända, så försiktighet tack!!
-            dbCurrentDB = "putsa_db";
+            //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
 
@@ -713,7 +713,7 @@ namespace EFDataTransfer
         {
             string sqlTemp;
 
-            sqlTemp= "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
+           /* sqlTemp= "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
                      + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
                      + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
                      + "clientnbr AS CustomerId, "
@@ -726,6 +726,18 @@ namespace EFDataTransfer
                      + "AND n.deleted = 'N' "
                      + "AND cli.deleted = 'N' "
                      + "AND clientnbr IS NOT NULL";
+            * */
+
+            sqlTemp = "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
+         + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
+         + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
+         + "clientnbr AS CustomerId, "
+         + "7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private "
+         + "FROM eriks_migration.dbo.TW_notes n "
+         + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
+         + "JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr "
+         + "WHERE tag_home = 'kund' AND tag_type = 'beställning'";
+
 
             Console.WriteLine("'Första beställningsdatum': " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
 
