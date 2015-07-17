@@ -56,7 +56,7 @@ namespace EFDataTransfer
                 List<tableProperty> allTables = new List<tableProperty>();
 
                 //tables with no transfer or subtables for transfers
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
+                /*allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderTimeReports", truncFlag = true, transferData = false });
@@ -90,12 +90,15 @@ namespace EFDataTransfer
                 allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories", truncFlag = false, transferData = true });
+
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "ServiceGroups", truncFlag = false, transferData = false });//Connected to Subscriptions
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Prices", truncFlag = true, transferData = false });//Connected to Subscriptions
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices", truncFlag = true, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });*/
+                //allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users", truncFlag = false, transferData = true });
+
                 //PÅ väg.. vi tar inte den i första rundan
                 //allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
               
@@ -170,12 +173,7 @@ namespace EFDataTransfer
                  * 
                  */
 
-                //Console.WriteLine("Transferring users...");
-                transferrer.Employees();
-
-
-                //Console.WriteLine("Creating team users...");
-                transferrer.CreateTeamUsers();
+ 
 
                 Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
                 Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");

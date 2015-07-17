@@ -30,7 +30,7 @@ namespace EFDataTransfer
                 foreach (var mapping in mappings)
                     bulkCopy.ColumnMappings.Add(mapping);
 
-            bulkCopy.BulkCopyTimeout = 2000;
+            bulkCopy.BulkCopyTimeout = 20000;
 
             try
             {
@@ -85,7 +85,7 @@ namespace EFDataTransfer
                 {
                     var table = new DataTable();
 
-                    adapter.SelectCommand.CommandTimeout = 300;
+                    adapter.SelectCommand.CommandTimeout = 3000;
                     adapter.Fill(table);
 
                     return table;
@@ -109,7 +109,7 @@ namespace EFDataTransfer
 
                 using (var cmd = new SqlCommand(command, _connection))
                 {
-                    cmd.CommandTimeout = 300;
+                    cmd.CommandTimeout = 3900;
                     cmd.ExecuteNonQuery();
                 }
             }

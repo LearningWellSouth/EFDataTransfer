@@ -312,6 +312,11 @@ namespace EFDataTransfer
                 case "ISSUES":
                     NotesAndIssues();
                     break;
+                case "USERS":
+                    Employees();
+                    Console.WriteLine("Creating team users...");
+                    CreateTeamUsers();
+                    break;
                 default:
                     break;
             }

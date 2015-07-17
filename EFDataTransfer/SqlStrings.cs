@@ -76,6 +76,8 @@ namespace EFDataTransfer
                         VALUES (19, 'Övrig försäljning', 3051, 'Övrig försäljning', 4);
                     INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
                         VALUES (20, 'Lämnade Kampanjrabatter', 3732, NULL, 4);
+                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
+                        VALUES (21, 'Putsskada', 4602, 'Putsskada', 4);
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Accounts OFF";
             }
         }
@@ -255,6 +257,7 @@ namespace EFDataTransfer
 		                    WHEN 4 THEN 7
 		                    WHEN 6 THEN 9
 		                    WHEN 13 THEN 20
+                            WHEN 14 THEN 21
 		                    END AS AccountId,
 	                    CASE WHEN deductible = 2 THEN 1 ELSE 0 END AS RUT,
 	                    CASE WHEN vat = 25 THEN 1 ELSE 0 END AS Vat,
