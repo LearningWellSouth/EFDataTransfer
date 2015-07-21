@@ -308,6 +308,7 @@ namespace EFDataTransfer
                     break;
                 case "CLEANINGOBJECTPRICES":
                     SubscriptionPrices();
+                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.CleaningObjectPrices SET ServiceGroupId = 10");
                     break;
                 case "ISSUES":
                     NotesAndIssues();
@@ -718,21 +719,6 @@ namespace EFDataTransfer
         {
             string sqlTemp;
 
-           /* sqlTemp= "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
-                     + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
-                     + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
-                     + "clientnbr AS CustomerId, "
-                     + "7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private "
-                     + "FROM eriks_migration.dbo.TW_notes n "
-                     + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
-                     + "JOIN " + dbCurrentDB + ".dbo.Customers c on c.Id = cli.clientnbr "
-                     + "WHERE table_name = 'clients' "
-                     + "AND header LIKE 'Inlagddatum' "
-                     + "AND n.deleted = 'N' "
-                     + "AND cli.deleted = 'N' "
-                     + "AND clientnbr IS NOT NULL";
-            * */
-
             sqlTemp = "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
          + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
          + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
@@ -741,7 +727,7 @@ namespace EFDataTransfer
          + "FROM eriks_migration.dbo.TW_notes n "
          + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
          + "JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr "
-         + "WHERE tag_home = 'kund' AND tag_type = 'beställning'";
+         + "WHERE tag_home = 'kund' AND tag_type = 'bestallning'";
 
 
             Console.WriteLine("'Första beställningsdatum': " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
@@ -755,9 +741,7 @@ namespace EFDataTransfer
                         5 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, n.created_by_id AS CreatorId, 0 AS Private
                     FROM eriks_migration.dbo.TW_notes n
                     JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    WHERE table_name = 'workorders' --AND tag_type IS NULL 
-                    AND notetype_id = '5'
-                    AND n.deleted = 'N'").Rows.Count);
+                    WHERE tag_home = 'objekt' AND tag_type = 'ekonomi'").Rows.Count);
 
             _dataAccess.NonQuery(SqlStrings.TransferEconomyNotes);
 
@@ -982,7 +966,7 @@ namespace EFDataTransfer
   
   
 
-        internal void MergeSubscriptions()
+        internal void MergeSubscriptionsOld()
         {
             var subscriptions = _dataAccess.SelectIntoTable("SELECT * FROM " + dbCurrentDB + ".dbo.Subscriptions");
 
@@ -1010,6 +994,33 @@ namespace EFDataTransfer
 
             }
         }
+
+        internal void MergeSubscriptions()
+        {
+            var cleaningObjectsIds = _dataAccess.SelectIntoTable("SELECT count(CleaningObjectId) As NoOfSubscriptions,CleaningObjectId FROM " + dbCurrentDB + ".dbo.Subscriptions Group By CleaningObjectId HAVING count(CleaningObjectId) >1");
+
+            int subIdToKeep = 0;
+            string collectedIds = "";
+
+            foreach (DataRow row in cleaningObjectsIds.Rows)
+            {
+                int cleaningObjectId = Convert.ToInt32(row["CleaningObjectId"]);
+
+                var subIdToChangeTbl = _dataAccess.SelectIntoTable("Select Id from " + dbCurrentDB + ".dbo.subscriptions where CleaningObjectId = " + cleaningObjectId.ToString());
+                
+                collectedIds = "0";
+                subIdToKeep = Convert.ToInt32(subIdToChangeTbl.Rows[0]["Id"]);
+
+                foreach (DataRow SubId in subIdToChangeTbl.Rows)
+                {
+                    collectedIds = collectedIds + "," + Convert.ToString(SubId["Id"]);
+                }
+
+                _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.SubscriptionServices SET SubscriptionId = " + subIdToKeep + " WHERE SubscriptionId IN(" + collectedIds + ")");
+                _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE Id!=" + subIdToKeep.ToString() + " AND CleaningObjectId = " + cleaningObjectId.ToString());
+            }
+        }
+        
 
         public void DeleteTable(string refTable,string refFieldToClean,string table)
         {

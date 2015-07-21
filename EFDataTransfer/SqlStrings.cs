@@ -331,12 +331,15 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_notes n
                     JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
                     JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND header LIKE 'Inlagddatum'
-                    AND n.deleted = 'N'
-                    AND cli.deleted = 'N'
-                    AND clientnbr IS NOT NULL
+                    WHERE tag_home = 'kund' AND tag_type = 'anteckning'
                     SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues OFF";
+
+                //WHERE table_name = 'clients'
+                //AND header LIKE 'Inlagddatum'
+                //AND n.deleted = 'N'
+                //AND cli.deleted = 'N'
+                //AND clientnbr IS NOT NULL
+
             }
         }
 
@@ -672,6 +675,12 @@ namespace EFDataTransfer
         {
             return "SELECT Id FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE Id != " + subToSetId + " AND CleaningObjectId = " + cleaningObjectId;
         }
+
+        public static string SelectSubscriptionIds(int cleaningObjectId)
+        {
+            return "SELECT Id FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE CleaningObjectId = " + cleaningObjectId;
+        }
+
 
         public static string SelectTWAddresses
         {
