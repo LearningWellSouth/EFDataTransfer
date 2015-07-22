@@ -92,7 +92,7 @@ namespace EFDataTransfer
 
         public static string InsertIntoSchedules(int num)
         {
-            return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.Schedules (Name, _ValidFrom, _ValidTo) OUTPUT INSERTED.Id VALUES ('Schema {0}', GETDATE(), GETDATE())", num);
+            return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.Schedules (Name, _ValidFrom, _ValidTo) OUTPUT INSERTED.Id VALUES ('Schema {0}', GETDATE()-200, GETDATE()+365)", num);
         }
 
         public static string InsertIntoServiceGroups

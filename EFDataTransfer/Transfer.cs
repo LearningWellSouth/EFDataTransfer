@@ -311,6 +311,7 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.CleaningObjectPrices SET ServiceGroupId = 10");
                     break;
                 case "ISSUES":
+
                     NotesAndIssues();
                     break;
                 case "USERS":
@@ -510,6 +511,12 @@ namespace EFDataTransfer
             settings.Rows.Add(new object[] { "ReminderDebtCollectionText", "Inkassotext\nRad1\nRad2" });
 
             _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Settings", settings, false, mapping);
+
+            //Nollställ locktable
+
+            _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.TableLocks SET NextInvoiceNumberTable = 0");
+
+
         }
 
         private void Subscriptions()
