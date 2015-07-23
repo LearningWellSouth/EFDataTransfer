@@ -308,7 +308,7 @@ namespace EFDataTransfer
                     break;
                 case "CLEANINGOBJECTPRICES":
                     SubscriptionPrices();
-                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.CleaningObjectPrices SET ServiceGroupId = 10");
+                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM ServiceGroups)");
                     break;
                 case "ISSUES":
 
