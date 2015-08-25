@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace EFDataTransfer
@@ -20,7 +21,6 @@ namespace EFDataTransfer
             //Proddatabasen
             dbCurrentDB = "eriks_test_db";
 
-            //Testdatabasen. Just nu är de omvända, så försiktighet tack!!
             //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
@@ -68,9 +68,9 @@ namespace EFDataTransfer
             int checkInt = 0;
             foreach (DataRow row in twAddresses.Rows)
             {
-                int idTest = Convert.ToInt32(row["id"]);
-                if (idTest == 1 || idTest == 2 || idTest == 3 || idTest == 4 || idTest == 2587 || idTest == 16323)
-                    Console.WriteLine();
+                //int idTest = Convert.ToInt32(row["id"]);
+                //if (idTest == 1 || idTest == 2 || idTest == 3 || idTest == 4 || idTest == 2587 || idTest == 16323)
+                //    Console.WriteLine();
 
                 checkInt++;
                 if (checkInt % 1000 == 0)
@@ -79,7 +79,13 @@ namespace EFDataTransfer
                 int postalCodeModelId = 0;
 
                 string postalCodeStr = Convert.ToString(row["postalcode_fixed"]);
-                if (string.IsNullOrEmpty(postalCodeStr)) continue;
+
+                if (string.IsNullOrEmpty(postalCodeStr))
+                {
+                    if (!new int[] { 997, 3110, 3194, 3635, 3689, 5360, 7816, 7823, 8139, 10917 }.Contains(Convert.ToInt32(row["id"])))
+                        continue;
+                    else postalCodeStr = "'" + Convert.ToString(row["postalcode"]) + "'";
+                }
 
                 string city = Convert.ToString(row["city"]).ToUpper().Trim();
                 string[] addrStrArr = Convert.ToString(row["address"]).Split(' ');
@@ -284,9 +290,9 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
                     break;
                 case "TEAMS":
-                    _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
-                    Console.WriteLine("Connect Workers with Team...");
-                    _dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
+                    //_dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
+                    //Console.WriteLine("Connect Workers with Team...");
+                    //_dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
                     Console.WriteLine("Connecting teams to cleaning objects...");
                     ConnectTeamsToCleaningObjects();
                 // Samtliga putsobjekt som inte får teamId av ovanstående har i TW-tabellen workarea_id = 0, vilket jag antar betyder att de inte är kopplade
@@ -308,7 +314,7 @@ namespace EFDataTransfer
                     break;
                 case "CLEANINGOBJECTPRICES":
                     SubscriptionPrices();
-                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM ServiceGroups)");
+                    _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM {0}.dbo.ServiceGroups)", dbCurrentDB));
                     break;
                 case "ISSUES":
 
@@ -436,6 +442,7 @@ namespace EFDataTransfer
         {
             _dataAccess.NonQuery(SqlStrings.SetRUT);
             _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Persons WHERE NoPersonalNoValidation = 1)");
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));
         }
 
         public void Employees()
@@ -509,6 +516,15 @@ namespace EFDataTransfer
             settings.Rows.Add(new object[] { "ReminderText", "Påminnelse\nRad1\nRad2" });
             settings.Rows.Add(new object[] { "ReminderTaxReductionText", "Text om att skattereduktion avvisas\nRad1\nRad2\nRad3" });
             settings.Rows.Add(new object[] { "ReminderDebtCollectionText", "Inkassotext\nRad1\nRad2" });
+            settings.Rows.Add(new object[] { "SMTPUsername", "noreply@eriksfonsterputs.se" });
+            settings.Rows.Add(new object[] { "SMTPPassword", "svarainte" });
+            settings.Rows.Add(new object[] { "SMTPHost", "smtp.gmail.com" });
+            settings.Rows.Add(new object[] { "SMTPPortTLS", "465" });
+            settings.Rows.Add(new object[] { "SMTPPortSSL", "587" });
+            settings.Rows.Add(new object[] { "ConfirmationMailSubject", "Fönsterputs" });
+            settings.Rows.Add(new object[] { "ConfirmationMailContent", "Bästa kund!<br/><br/><br/><br/>Vi har idag putsat fönster på {0}. Vill du kontakta oss gällande putsningen, vänligen ring kundtjänst på 0771-424242 och ange refnr {1}.<br /><br />Miljövän? Tänk på att du kan anmäla dig för e-faktura hos din bank! <br /><br />Med vänliga hälsningar, {2}<br />Eriks Fönsterputs" });
+            settings.Rows.Add(new object[] { "DebugMailAddress", "msp@learningwell.se" });
+            settings.Rows.Add(new object[] { "ProductionMode", "false" });
 
             _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Settings", settings, false, mapping);
 
@@ -595,6 +611,8 @@ namespace EFDataTransfer
                 float mod = 0.0f;
                 if (woPrice != 0 && sPrice != 0)
                     mod = (float)Math.Round((decimal)(woPrice / sPrice), 4);
+                else if (sPrice == 0 && woPrice != 0)
+                    mod = (float)woPrice;
 
                 coPrices.Rows.Add(new object[] { coId, Convert.ToInt32(row["ServiceId"]), mod, Convert.ToString(row["wolDesc"]) });
             }
@@ -653,7 +671,7 @@ namespace EFDataTransfer
                 else
                 {
                     for (int j = 1; j < 8; j++)
-                        subscriptionServices.Rows.Add(new object[] { 4, row["workorder_id"], row["sId"], j });
+                        subscriptionServices.Rows.Add(new object[] { 3, row["workorder_id"], row["sId"], j });
                 }
             }
 
@@ -724,253 +742,97 @@ namespace EFDataTransfer
 
         private void NotesAndIssues()
         {
-            string sqlTemp;
-
-            sqlTemp = "SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], "
-         + "CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
-         + "CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, "
-         + "clientnbr AS CustomerId, "
-         + "7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private "
-         + "FROM eriks_migration.dbo.TW_notes n "
-         + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
-         + "JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr "
-         + "WHERE tag_home = 'kund' AND tag_type = 'bestallning'";
-
-
-            Console.WriteLine("'Första beställningsdatum': " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferCustomerAddedNotes);
-
-            Console.WriteLine("'Ekonomianteckning objekt'" + _dataAccess.SelectIntoTable(@"SELECT n.id AS Id, header AS Title, content AS [Description], 
-                        CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 
-                        0 AS [Priority], 
-                        CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        5 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, n.created_by_id AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    WHERE tag_home = 'objekt' AND tag_type = 'ekonomi'").Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferEconomyNotes);
-
-            sqlTemp = "SELECT n.id AS Id, header AS Title, content AS [Description], CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END "
-                    + "AS [Status], 0 AS [Priority], CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, "
-                    + "5 AS IssueType, clientnbr AS CustomerId, "
-                    + "CASE WHEN n.created_by_id <> -1 THEN n.created_by_id ELSE NULL END AS CreatorId, 0 AS Private "
-                    + "FROM eriks_migration.dbo.TW_notes n "
-                    + "JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id "
-                    + "JOIN " + dbCurrentDB + ".dbo.Customers c ON c.Id = cli.clientnbr "
-                    + "WHERE table_name = 'clients' "
-                    + "AND notetype_id = '5' "
-                    + "AND n.deleted = 'N'";
-
-            Console.WriteLine("'Ekonomianteckning kund: " + _dataAccess.SelectIntoTable(@sqlTemp).Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferEconomyCustomerNotes);
-
-            Console.WriteLine("Setting 'InfoBeforeCleaning'");
-            // *** Update CleaningObjectInfo *** //
-            // Before
-            var twInfos = _dataAccess.SelectIntoTable(SqlStrings.SelectTWCleaningObjectInfoBefore);
-
-            int currentCleaningObjectId = 0;
-            int checkInt=0;
-            string info = string.Empty;
-
-            checkInt = 0;
-
-            foreach (DataRow row in twInfos.Rows)
-            {
-
-
-                int nextCleaningObjectId = Convert.ToInt32(row["CleaningObjectId"]);
-
-                if (nextCleaningObjectId != currentCleaningObjectId)
-                {
-                    info = Convert.ToString(row["Info"]).Replace("'", "''");
-                    currentCleaningObjectId = nextCleaningObjectId;
-                }
-                else
-                {
-                    info = info + "\r\n" + Convert.ToString(row["Info"]).Replace("'", "''");
-                    currentCleaningObjectId = nextCleaningObjectId;
-                }
-
-                _dataAccess.NonQuery(SqlStrings.UpdateCleaningObjectInfoBefore(currentCleaningObjectId, info));
-
-                checkInt++;
-                if (checkInt % 1000 == 0)
-                    Console.WriteLine(checkInt + " of " + twInfos.Rows.Count + " rows finished...");
-
-            }
-
-            Console.WriteLine("Setting 'InfoDuringCleaning'");
-            // During
-            var twInfosDuring = _dataAccess.SelectIntoTable(SqlStrings.SelectTWCleaningObjectInfoDuring);
-
-            currentCleaningObjectId = 0;
-            info = string.Empty;
-            checkInt = 0;
-
-            foreach (DataRow row in twInfosDuring.Rows)
-            {
-                int nextCleaningObjectId = Convert.ToInt32(row["CleaningObjectId"]);
-
-                if (nextCleaningObjectId != currentCleaningObjectId)
-                {
-                    info = Convert.ToString(row["Info"]).Replace("'", "''");
-                    currentCleaningObjectId = nextCleaningObjectId;
-                }
-                else
-                {
-                    info = info + "\r\n" + Convert.ToString(row["Info"]).Replace("'", "''");
-                    currentCleaningObjectId = nextCleaningObjectId;
-                }
-
-                _dataAccess.NonQuery(SqlStrings.UpdateCleaningObjectInfoDuring(currentCleaningObjectId, info));
-
-                checkInt++;
-                if (checkInt % 1000 == 0)
-                    Console.WriteLine(checkInt + " of " + twInfosDuring.Rows.Count + " rows finished...");
-
-            }
-
-            Console.WriteLine("Setting remaining 'InfoBeforeCleaning'");
-            _dataAccess.NonQuery(SqlStrings.UpdateEmptyCleaningObjectInfoBefore);
-
-            ////// *** Info updated *** //
-
-            ////Console.WriteLine("Transferring notes and issues");
-            ////////////////_dataAccess.NonQuery(SqlStrings.TransferCleaningObjectNotes);
-
-            sqlTemp = " SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], "
-	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,"
-	                + "wo.delivery_clientaddress_id AS CleaningObjectId,"
-	                + "7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority "
-                    + "FROM eriks_migration.dbo.TW_notes AS notes " 
-                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
-                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
-                    + "WHERE table_name = 'workorders' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%' "
-                    + "AND notes.deleted = 'N'";
-
-            Console.WriteLine("Vanliga anteckningar Objekt Tillval: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferMoreCleaningObjectNotes);
-
-            Console.WriteLine("Vanliga anteckningar Kund Tillval: " + _dataAccess.SelectIntoTable(@"  SELECT notes.id AS Id,
-                        CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    header AS Title, content AS [Description], 4 AS [Status], 7 AS IssueType, notes.created_by_id AS CreatorId,
-	                    cli.clientnbr AS CustomerId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes  
-                    JOIN eriks_migration.dbo.TW_clients AS cli on notes.table_id = cli.id
-                    WHERE table_name = 'clients' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%' AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ").Rows.Count);
-
             _dataAccess.NonQuery(SqlStrings.TransferCustomerNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectOrderNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCustomerEconomyNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectEconomyNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectFieldNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferReclamationNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferTerminationNotes);
 
-            sqlTemp = "SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 2 AS [Status], "
-	                 + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,"
-	                 + "created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority "
-                     + "FROM eriks_migration.dbo.TW_notes AS notes " 
-                     + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
-                     + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
-                     + "WHERE table_name = 'workorders' AND notes.header LIKE 'BESTÄLLNING' AND notes.deleted = 'N' "
-                     + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues) ";
+            _dataAccess.NonQuery(SqlStrings.TransferInfoBeforeCleaning);
+            _dataAccess.NonQuery(SqlStrings.TransferHeaderAndContentInfoBeforeCleaning);
 
-            Console.WriteLine("Vanliga anteckningar Beställning: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
+            _dataAccess.NonQuery(SqlStrings.TransferInfoDuringCleaning);
+            _dataAccess.NonQuery(SqlStrings.TransferHeaderAndContentInfoDuringCleaning);
 
-            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectOrders);
+            Console.WriteLine("Transferring and merging infoBeforeCleaning...");
 
-            sqlTemp = "SELECT notes.id AS Id, header AS Title, content AS [Description], "
-	                + "CASE WHEN notes.deleted = 'N' THEN 4 ELSE 2 END AS [Status], "  
-	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate, "
-	                + "wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, 0 AS Private, 0 AS Priority "
-                    + "FROM eriks_migration.dbo.TW_notes AS notes  "
-                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
-                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
-                    + "WHERE table_name = 'workorders' AND notes.header LIKE 'telefonhistorik' AND notes.deleted = 'N' "
-                    + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ";
+            TransferCleaningObjectInfo(_dataAccess.SelectIntoTable(SqlStrings.SelectDuplicateTwNoteTableIds), "InfoBeforeCleaning", false);
+            TransferCleaningObjectInfo(_dataAccess.SelectIntoTable(SqlStrings.SelectHeaderAndContentIdsFromDuplicateTWNotes), "InfoBeforeCleaning", true);
 
-            Console.WriteLine("Vanliga anteckningar Telefonhistorik: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
+            Console.WriteLine("Transferring and merging infoDuringCleaning...");
 
-            _dataAccess.NonQuery(SqlStrings.TransferCustomerTelephoneNotes);
+            TransferCleaningObjectInfo(_dataAccess.SelectIntoTable(SqlStrings.SelectDuplicateTwNoteIdsForDuring), "InfoDuringCleaning", false);
+            TransferCleaningObjectInfo(_dataAccess.SelectIntoTable(SqlStrings.SelectHeaderAndContentIdsFromDuplicateTWNotesForDuring), "InfoDuringCleaning", true);
 
-             sqlTemp ="SELECT notes.id AS Id, notes.header AS Title, content AS [Description], "
-	                + "CASE WHEN notes.deleted ='N' THEN 2 ELSE 4 END AS [Status], "
-	                + "CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate, "
-	                + "created_by_id AS CreatorId, 7 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority "
-                    + "FROM eriks_migration.dbo.TW_notes AS notes  "
-                    + "JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id "
-                    + "JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id "
-                    + "WHERE table_name = 'workorders' AND notes.header LIKE 'HUSBESKRIVNING' AND notes.deleted = 'N' "
-                    + "AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)  ";
+            Console.WriteLine("Transferring Issues");
+            var twIssues = _dataAccess.SelectIntoTable(SqlStrings.SelectTwIssues);
+            var issues = new DataTable();
+            issues.Columns.AddRange(new DataColumn[] {
+                new DataColumn("Title", typeof(string)),
+                new DataColumn("Description", typeof(string)),
+                new DataColumn("Status", typeof(int)), 
+                new DataColumn("Priority", typeof(int)),
+                new DataColumn("StartDate", typeof(DateTime)),
+                new DataColumn("FinishedDate", typeof(DateTime)),
+                new DataColumn("IssueType", typeof(int)),
+                new DataColumn("Private", typeof(bool)),
+                new DataColumn("CustomerId", typeof(int))
+            });
 
-            Console.WriteLine("Vanliga anteckningar Husbeskrivning: " + _dataAccess.SelectIntoTable(sqlTemp).Rows.Count);
-            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectDescriptions);
+            var mappings = new SqlBulkCopyColumnMapping[] {
+                new SqlBulkCopyColumnMapping("Title", "Title"),
+                new SqlBulkCopyColumnMapping("Description", "Description"),
+                new SqlBulkCopyColumnMapping("Status", "Status"),
+                new SqlBulkCopyColumnMapping("Priority", "Priority"),
+                new SqlBulkCopyColumnMapping("StartDate", "StartDate"),
+                new SqlBulkCopyColumnMapping("FinishedDate", "FinishedDate"),
+                new SqlBulkCopyColumnMapping("IssueType", "IssueType"),
+                new SqlBulkCopyColumnMapping("Private", "Private"),
+                new SqlBulkCopyColumnMapping("CustomerId", "CustomerId")
+            };
 
-            Console.WriteLine("Uppsägningar kund: " + _dataAccess.SelectIntoTable(@" SELECT DISTINCT notes.id AS Id, 'Uppsägning' AS Title, content AS [Description], 4 AS [Status],
-	                    CASE WHEN ISDATE(content) = 1 THEN content WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    cli.clientnbr AS CustomerId, 3 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_clients AS cli ON cli.id = notes.table_id
-                    WHERE table_name = 'clients' 
-                    AND content <> ''
-                    AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
+            foreach (DataRow row in twIssues.Rows)
+            {
+                issues.Rows.Add(new object[] {
+                    row["Title"], Regex.Replace(Convert.ToString(row["Description"]), @"<[^>]+>|&nbsp;", "").Trim(), row["Status"], row["Priority"], row["StartDate"], row["FinishedDate"],
+                    row["IssueType"], row["Private"], row["CustomerId"]
+                });
+            }
 
-            _dataAccess.NonQuery(SqlStrings.TransferCustomerCancellations);
-
-            Console.WriteLine("Uppsägningar: " + _dataAccess.SelectIntoTable(@" SELECT n.Id AS Id, content AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], 
-                        CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notetype_id = 1 AND n.deleted = 'N' AND important = 'Y' AND 
-                    n.content LIKE '%UPPSAGD%'     AND n.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
-                    ORDER BY table_id").Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferMoreCancellations);
-
-            Console.WriteLine("Uppsägningar objekt: " + _dataAccess.SelectIntoTable(@"SELECT DISTINCT notes.id AS Id, 'Uppsägning' AS Title, content AS [Description], 4 AS [Status],
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON wo.id = notes.table_id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' 
-                    AND content <> ''
-                    AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectCancellations);
-
-            Console.WriteLine("Anteckningar objekt: " + _dataAccess.SelectIntoTable(@" SELECT  DISTINCT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-                    wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                FROM eriks_migration.dbo.TW_notes AS notes 
-                JOIN eriks_migration.dbo.TW_workorders AS wo on wo.id = notes.table_id
-                JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                WHERE table_name = 'workorders' AND notes.deleted = 'N'
-                AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
-                AND notes.header IN ('%TELEFON%','%Kundhistorik%','%info_BV%','%MAIL%','%info tillval%','%info faktura%','%special%','%Anm%','%Info%')").Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferEvenMoreCleaningObjectNotes);
-
-            Console.WriteLine("Anteckningar kund: " + _dataAccess.SelectIntoTable(@" SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    cli.clientnbr AS CustomerId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_clients AS cli ON cli.id = notes.table_id
-                    JOIN " + dbCurrentDB + @".dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND notes.deleted = 'N'
-                    AND notes.header IN ('TELEFON','Kundhistorik','info_BV','MAIL','info tillval','info faktura','special','Anm', 'Info')
-                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Issues)").Rows.Count);
-
-            _dataAccess.NonQuery(SqlStrings.TransferMoreCustomerNotes);
+            _dataAccess.InsertMany(dbCurrentDB + ".dbo.Issues", issues, false, mappings);
         }
 
-  
+        private void TransferCleaningObjectInfo(DataTable noteIds, string infoField, bool includeHeader)
+        {
+            foreach (DataRow noteRow in noteIds.Rows)
+            {
+                int noteId = Convert.ToInt32(noteRow["table_id"]);
+                var contentTable = _dataAccess.SelectIntoTable(SqlStrings.SelectTwNoteAndCleaningObjectId(noteId));
+
+                int coId = 0;
+                string content = string.Empty;
+
+                foreach (DataRow contentRow in contentTable.Rows)
+                {
+                    var bla = contentRow["header"];
+                    bla = contentRow["content"];
+
+                    if (includeHeader)
+                        content +=
+                            Convert.ToString(contentRow["header"]) + " - " +
+                            Convert.ToString(contentRow["content"]) + Environment.NewLine;
+                    else
+                        content += Convert.ToString(contentRow["content"]) + Environment.NewLine;
+
+                    coId = Convert.ToInt32(contentRow["coId"]);
+                }
+
+                _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjects SET {1} = '{2}' WHERE Id = {3}", dbCurrentDB, infoField, content, coId));
+            }
+        }
   
 
         internal void MergeSubscriptionsOld()

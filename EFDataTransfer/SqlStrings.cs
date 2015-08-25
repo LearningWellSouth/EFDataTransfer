@@ -86,7 +86,7 @@ namespace EFDataTransfer
             string postalCode, string postalCodeType, string address, string streetNoLowest, string streetNoHighest, string city, string typeOfPlacement)
         {
             return string.Format(@"INSERT INTO " + dbCurrentDB + @".dbo.PostalCodeModels (PostalCode, PostalCodeType, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, IsNotValid)
-                OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
+                OUTPUT INSERTED.Id VALUES ({0}, '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
                 postalCode, postalCodeType, address, streetNoLowest, streetNoHighest, city, typeOfPlacement);
         }
 
@@ -316,211 +316,204 @@ namespace EFDataTransfer
             }
         }
 
-        public static string TransferCustomerAddedNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, CreatorId, Private)
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
-                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate,
-                        CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
-                        clientnbr AS CustomerId, 
-                        7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
-                    JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr
-                    WHERE tag_home = 'kund' AND tag_type = 'anteckning'
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues OFF";
-
-                //WHERE table_name = 'clients'
-                //AND header LIKE 'Inlagddatum'
-                //AND n.deleted = 'N'
-                //AND cli.deleted = 'N'
-                //AND clientnbr IS NOT NULL
-
-            }
-        }
-
-        public static string TransferEconomyNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, IssueType, CleaningObjectId, CreatorId, Private)
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 
-                        CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 
-                        0 AS [Priority], 
-                        CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        5 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, n.created_by_id AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    WHERE table_name = 'workorders' --AND tag_type IS NULL 
-                    AND notetype_id = '5'
-                    AND n.deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
-        public static string TransferEconomyCustomerNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, IssueType, CustomerId, CreatorId, Private)
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 
-	                    CASE WHEN n.deleted = 'N' AND n.closed = 'N' THEN 2 ELSE 4 END 
-	                    AS [Status], 0 AS [Priority], CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        5 AS IssueType, clientnbr AS CustomerId, 
-                        CASE WHEN n.created_by_id <> -1 THEN n.created_by_id ELSE NULL END AS CreatorId, 0 AS Private
-                    FROM eriks_migration.dbo.TW_notes n
-                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
-                    JOIN " + dbCurrentDB + @".dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND notetype_id = '5'
-                    AND n.deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues OFF";
-            }
-        }
-
-//        public static string TransferCleaningObjectNotes
-//        {
-//            get
-//            {
-//                return @"
-//                    INSERT INTO " + dbCurrentDB + ".dbo.Issues (Title, [Description], [Status], StartDate, CleaningObjectId, IssueType, Private, Priority)
-//                    SELECT 'Anteckning' AS Title, content AS [Description], 
-//                    CASE WHEN closed = 'N' THEN 2 ELSE 4 END AS [Status],
-//                    CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate,
-//                    wo.delivery_clientaddress_id AS CleaningObjectId,
-//                    7 AS IssueType, 0 AS Private, 0 AS Priority
-//                    FROM eriks_migration.dbo.TW_notes n 
-//                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-//                    JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-//                    WHERE table_name = 'workorders' AND n.header LIKE '' AND n.important = 'N' AND n.deleted = 'N' AND content <> ''                
-//                ";
-//            }
-//        }
-
-        public static string TransferMoreCleaningObjectNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CleaningObjectId, IssueType, CreatorId, Private, Priority)
-                    SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    wo.delivery_clientaddress_id AS CleaningObjectId,
-	                    7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%'
-                    AND notes.deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
         public static string TransferCustomerNotes
         {
             get
             {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, StartDate, Title, [Description], [Status], IssueType, CreatorId, CustomerId, Private, Priority)
-                    SELECT notes.id AS Id,
-                        CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    header AS Title, content AS [Description], 4 AS [Status], 7 AS IssueType, notes.created_by_id AS CreatorId,
-	                    cli.clientnbr AS CustomerId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes  
-                    JOIN eriks_migration.dbo.TW_clients AS cli on notes.table_id = cli.id
-                    WHERE table_name = 'clients' AND notes.header LIKE '%NDRING%' AND notes.header LIKE '%TILLVAL%' AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)                    
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
+                return string.Format(@"
+                    SET IDENTITY_INSERT {0}.dbo.Issues ON
+                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, [Private])
+                    SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+                        CASE WHEN ISDATE(content) = 1 AND CONVERT(DATETIME, content) > n.ctime THEN content 
+		                    WHEN n.ctime IS NOT NULL THEN n.ctime ELSE n.ctime END AS StartDate,
+                        CASE WHEN ISDATE(content) = 1  THEN content 
+		                    WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
+                        c.Id AS CustomerId, 7 AS IssueType, 0 AS [Private]
+                    FROM eriks_migration.dbo.TW_notes n
+                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
+                    JOIN {0}.dbo.Customers c on c.Id = cli.clientnbr
+                    WHERE n.tag_type LIKE '%anteckning%' AND n.table_name LIKE '%clients%'
+                    SET IDENTITY_INSERT {0}.dbo.Issues OFF
+                ", dbCurrentDB);
             }
         }
 
-        public static string TransferCustomerTelephoneNotes
+//        public static string TransferCustomerAddedNotes
+//        {
+//            get
+//            {
+//                return @"
+//                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
+//                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, CreatorId, Private)
+//                    SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+//                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate,
+//                        CASE WHEN ISDATE(content) = 1  THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
+//                        clientnbr AS CustomerId, 
+//                        7 AS IssueType, n.created_by_id AS CreatorId, 0 AS Private
+//                    FROM eriks_migration.dbo.TW_notes n
+//                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
+//                    JOIN " + dbCurrentDB + @".dbo.Customers c on c.Id = cli.clientnbr
+//                    WHERE tag_home = 'kund' AND tag_type = 'anteckning'
+//                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues OFF";
+
+//                //WHERE table_name = 'clients'
+//                //AND header LIKE 'Inlagddatum'
+//                //AND n.deleted = 'N'
+//                //AND cli.deleted = 'N'
+//                //AND clientnbr IS NOT NULL
+
+//            }
+//        }
+
+        public static string TransferCleaningObjectEconomyNotes
         {
             get
             {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CleaningObjectId, IssueType, Private, Priority)
-                    SELECT notes.id AS Id, header AS Title, content AS [Description], 
-	                    CASE WHEN notes.deleted = 'N' THEN 4 ELSE 2 END AS [Status],  
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CleaningObjectId, CreatorId, Private)
+                    SELECT header AS Title, content AS [Description], 
+                        CASE WHEN n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 
+                        0 AS [Priority], 
+                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
+						CASE WHEN n.closed = 'N' THEN NULL WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
+                        5 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, n.created_by_id AS CreatorId, 0 AS Private
+                    FROM eriks_migration.dbo.TW_notes n
+                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
+                    WHERE table_name LIKE '%workorders%' AND tag_type LIKE '%ekonomi%'
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferCleaningObjectFieldNotes
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], [Priority], StartDate, FinishedDate, [Private], CleaningObjectId, IssueType)
+                    SELECT notes.header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
+	                    0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 10 AS IssueType
+                    FROM eriks_migration.dbo.TW_notes AS notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE 'telefonhistorik' AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%falt%' AND table_name LIKE '%workorders%'
+                    SET IDENTITY_INSERT {0}.dbo.Issues OFF
+                ", dbCurrentDB);
             }
         }
 
-        public static string TransferCleaningObjectOrders
+        public static string TransferCustomerEconomyNotes
         {
             get
             {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
-                    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 2 AS [Status],
+                return string.Format(@"
+                    SET IDENTITY_INSERT {0}.dbo.Issues ON
+                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CustomerId, CreatorId, Private)
+                    SELECT n.id AS Id, header AS Title, content AS [Description], 
+	                    CASE WHEN n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 0 AS [Priority], 
+						CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
+                        CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
+                        5 AS IssueType, clientnbr AS CustomerId, 
+                        CASE WHEN n.created_by_id <> -1 THEN n.created_by_id ELSE NULL END AS CreatorId, 0 AS Private
+                    FROM eriks_migration.dbo.TW_notes n
+                    JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
+                    JOIN {0}.dbo.Customers c ON c.Id = cli.clientnbr
+                    WHERE table_name LIKE '%clients%' AND n.tag_type LIKE '%ekonomi%' 
+                    SET IDENTITY_INSERT {0}.dbo.Issues OFF", dbCurrentDB);
+            }
+        }
+
+        public static string TransferCleaningObjectNotes
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], StartDate, FinishedDate, CleaningObjectId, IssueType, Private, Priority)
+                    SELECT n.header AS Title, content AS [Description], 4 AS [Status],
+                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate,
+                        CASE WHEN ISDATE(content) = 1 THEN content WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate,
+                        wo.delivery_clientaddress_id AS CleaningObjectId,
+                        7 AS IssueType, 0 AS Private, 0 AS Priority
+                    FROM eriks_migration.dbo.TW_notes n 
+                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE n.tag_type LIKE '%anteckning%' AND n.table_name LIKE '%workorders%'
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferCleaningObjectOrderNotes
+        {
+            get
+            {
+                return string.Format(@"
+                    SET IDENTITY_INSERT {0}.dbo.Issues ON
+                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], StartDate, FinishedDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
+                    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 4 AS [Status],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
+						CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
 	                    created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
                     FROM eriks_migration.dbo.TW_notes AS notes 
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.header LIKE 'BESTÄLLNING' AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE table_name LIKE '%workorders%' AND notes.tag_type LIKE '%bestallning%'
+                    SET IDENTITY_INSERT {0}.dbo.Issues OFF",
+                dbCurrentDB);
             }
         }
 
-        public static string TransferCleaningObjectDescriptions
+        public static string TransferReclamationNotes
         {
             get
             {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
-                    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 
-	                    CASE WHEN notes.deleted ='N' THEN 2 ELSE 4 END AS [Status],
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], [Priority], StartDate, FinishedDate, [Private], CleaningObjectId, IssueType)
+                    SELECT notes.header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    created_by_id AS CreatorId, 7 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
-                     FROM eriks_migration.dbo.TW_notes AS notes 
-                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                     WHERE table_name = 'workorders' AND notes.header LIKE 'HUSBESKRIVNING' AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-             
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
+	                    0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 1 AS IssueType
+                    FROM eriks_migration.dbo.TW_notes AS notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%reklamation%' AND table_name LIKE '%workorders%'
+                ", dbCurrentDB);
             }
         }
 
-        public static string TransferCustomerCancellations
+        public static string TransferDamageReports
         {
             get
             {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CustomerId, IssueType, CreatorId, Private, Priority)
-                    SELECT DISTINCT notes.id AS Id, 'Uppsägning' AS Title, content AS [Description], 4 AS [Status],
-	                    CASE WHEN ISDATE(content) = 1 THEN content WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    cli.clientnbr AS CustomerId, 3 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_clients AS cli ON cli.id = notes.table_id
-                    WHERE table_name = 'clients' 
-                    AND content <> ''
-                    AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
-                        AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues OFF";
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], [Priority], StartDate, FinishedDate, [Private], CleaningObjectId, IssueType)
+                    SELECT notes.header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
+	                    0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 4 AS IssueType
+                    FROM eriks_migration.dbo.TW_notes AS notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%skadeanmalan%' AND table_name LIKE '%workorders%'
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferTerminationNotes
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Issues (Title, [Description], [Status], [Priority], StartDate, FinishedDate, [Private], CleaningObjectId, IssueType)
+                    SELECT notes.header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
+	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
+	                    0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType
+                    FROM eriks_migration.dbo.TW_notes AS notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppsagning%' AND table_name LIKE '%workorders%'
+                ", dbCurrentDB);
             }
         }
 
@@ -541,67 +534,6 @@ namespace EFDataTransfer
                     AND content <> ''
                     AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
                     AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
-        public static string TransferEvenMoreCleaningObjectNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CleaningObjectId, IssueType, CreatorId, Private, Priority)
-                    SELECT  DISTINCT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-                        CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-                        wo.delivery_clientaddress_id AS CleaningObjectId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_workorders AS wo on wo.id = notes.table_id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notes.deleted = 'N'
-                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
-                    AND notes.header IN ('%TELEFON%','%Kundhistorik%','%info_BV%','%MAIL%','%info tillval%','%info faktura%','%special%','%Anm%','%Info%')
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
-        public static string TransferMoreCustomerNotes
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], StartDate, CustomerId, IssueType, CreatorId, Private, Priority)
-                    SELECT notes.id AS Id, header AS Title, content AS [Description], 2 AS [Status], 
-	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
-	                    cli.clientnbr AS CustomerId, 7 AS IssueType, notes.created_by_id AS CreatorId, 0 AS Private, 0 AS Priority
-                    FROM eriks_migration.dbo.TW_notes AS notes 
-                    JOIN eriks_migration.dbo.TW_clients AS cli ON cli.id = notes.table_id
-                    JOIN " + dbCurrentDB + @".dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name = 'clients'
-                    AND notes.deleted = 'N'
-                    AND notes.header IN ('TELEFON','Kundhistorik','info_BV','MAIL','info tillval','info faktura|special','Anm', 'Info')
-                    AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
-        public static string TransferMoreCancellations
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Issues ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, [Private], CleaningObjectId, IssueType)
-                    SELECT n.Id AS Id, content AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority], 
-                        CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
-                        0 AS [Private], wo.delivery_clientaddress_id AS CleaningObjectId, 3 AS IssueType
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND notetype_id = 1 AND n.deleted = 'N' AND important = 'Y' AND 
-                    n.content LIKE '%UPPSAGD%'     AND n.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)  
-                    ORDER BY table_id
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
             }
         }
@@ -642,8 +574,8 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement FROM " + dbCurrentDB + @".dbo.PostalCodeModels 
-                    WHERE PostalCode IN (SELECT postalcode_fixed FROM eriks_migration.dbo.TW_clientaddresses)";
+                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement FROM " + dbCurrentDB + @".dbo.PostalCodeModels";
+                    // WHERE PostalCode IN (SELECT postalcode_fixed FROM eriks_migration.dbo.TW_clientaddresses)"; Kan inte köra detta pga att landskoder tillkommit i postnr
             }
         }
 
@@ -686,7 +618,8 @@ namespace EFDataTransfer
         {
             get
             {
-                return "SELECT id, [address], co_address, postalcode_fixed, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id FROM eriks_migration.dbo.TW_clientaddresses WHERE deleted = 'N'";
+                return "SELECT id, [address], co_address, postalcode_fixed, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
+                    "FROM eriks_migration.dbo.TW_clientaddresses WHERE deleted = 'N'";
             }
         }
 
@@ -841,9 +774,213 @@ namespace EFDataTransfer
             }
         }
 
+        public static string SelectDuplicateTwNoteTableIds
+        {
+            get
+            {
+                return string.Format(@"                    
+                    SELECT table_id
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%'
+                    AND header IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+                    AND header NOT IN ('OBS!!!', 'UPPSÄGNING', 'REKLAMATION', 'BESTÄLLNING', 'UPPSAGD', 'ALLA SIDOR', 'KONTAKTA')
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes 
+	                    WHERE tag_type LIKE '%uppdrag_fore%' 
+	                    AND table_name LIKE '%workorders%' 
+	                    AND header IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+	                    AND header NOT IN ('OBS!!!', 'UPPSÄGNING', 'REKLAMATION', 'BESTÄLLNING', 'UPPSAGD', 'ALLA SIDOR', 'KONTAKTA')
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) > 1 
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string SelectDuplicateTwNoteIdsForDuring
+        {
+            get
+            {
+                return string.Format(@"
+                    SELECT table_id
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+                    AND header IN ('Uppdragsbeskrivning', '', 'INFO', 'statusInfo')
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
+	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+	                    AND header NOT IN ('Uppdragsbeskrivning', '')
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) > 1
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string SelectHeaderAndContentIdsFromDuplicateTWNotes
+        {
+            get
+            {
+                return @"
+                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes 
+                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%'
+                    --AND header NOT IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes 
+	                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%' 
+	                    --AND header NOT IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+	                    GROUP BY table_id
+	                    HAVING COUNT(table_id) > 1 
+                    )
+                ";
+            }
+        }
+
+        public static string SelectHeaderAndContentIdsFromDuplicateTWNotesForDuring
+        {
+            get {
+                return @"
+                    SELECT table_id
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+                    --AND header NOT IN ('Uppdragsbeskrivning', '', 'INFO', 'statusInfo')
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
+	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+	                  --  AND header NOT IN ('Uppdragsbeskrivning', '')
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) > 1
+                    )";
+            }
+        }            
+
+        public static string SelectTwNoteAndCleaningObjectId(int id)
+        {
+            return string.Format(@"
+                SELECT content, header, co.Id AS coId
+                FROM eriks_migration.dbo.TW_notes notes
+                JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                WHERE notes.id = {1}
+            ", dbCurrentDB, id);
+        }
+
+        public static string SelectTwIssues
+        {
+            get {
+                return @"
+                    select [subject] as Title, content as [Description], 4 as [Status], 1 as [Priority], creation_date as StartDate, i.ctime as FinishedDate, 7 as IssueType, 
+                        0 as [Private], c.clientnbr as CustomerId
+                    from eriks_migration.dbo.TW_issues i 
+                    join eriks_migration.dbo.TW_clients c on i.client_id = c.id
+                ";
+            }
+        }
+
         #endregion
 
         #region update
+
+        public static string TransferInfoBeforeCleaning
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.CleaningObjects SET InfoBeforeCleaning = content
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%'
+                    AND header IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+                    AND header NOT IN ('OBS!!!', 'UPPSÄGNING', 'REKLAMATION', 'BESTÄLLNING', 'UPPSAGD', 'ALLA SIDOR', 'KONTAKTA')
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes 
+	                    WHERE tag_type LIKE '%uppdrag_fore%' 
+	                    AND table_name LIKE '%workorders%' 
+	                    AND header IN ('statusINFO', 'Uppdragsbeskrivning', '', 'INFO', 'ANTECKNING', 'HUSBESKRIVNING', 'VIKTIGT') 
+	                    AND header NOT IN ('OBS!!!', 'UPPSÄGNING', 'REKLAMATION', 'BESTÄLLNING', 'UPPSAGD', 'ALLA SIDOR', 'KONTAKTA')
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) = 1 
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferInfoDuringCleaning
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = content
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
+	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) = 1
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferHeaderAndContentInfoBeforeCleaning
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.CleaningObjects SET InfoBeforeCleaning = CONCAT(header, ' - ', content)
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%'
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
+	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    WHERE tag_type LIKE '%uppdrag_fore%' AND table_name LIKE '%workorders%'
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) = 1
+                    )             
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string TransferHeaderAndContentInfoDuringCleaning
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = CONCAT(header, ' - ', content)
+                    FROM eriks_migration.dbo.TW_notes notes
+                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
+                    AND header NOT IN ('Uppdragsbeskrivning', '', 'INFO', 'statusInfo')
+                    AND table_id IN (
+	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
+	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
+	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
+	                    GROUP BY table_id
+	                    HAVING COUNT (table_id) = 1
+                    )
+                ", dbCurrentDB);
+            }
+        }
 
         public static string ConnectBanksToCustomers
         {
@@ -910,6 +1047,22 @@ namespace EFDataTransfer
                     FROM " + dbCurrentDB + @".dbo.Subscriptions s
                     JOIN eriks_migration.dbo.TW_workorders wo ON wo.delivery_clientaddress_id = s.CleaningObjectId
                 ";
+            }
+        }
+
+        public static string SetSubscriptionsInActiveByClientsDeleted
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Subscriptions SET IsInactive = 1
+                    WHERE Id IN (
+	                    SELECT s.Id FROM {0}.dbo.Subscriptions s
+	                    JOIN {0}.dbo.CleaningObjects co on co.Id = s.CleaningObjectId
+	                    JOIN eriks_migration.dbo.TW_clients twc on twc.clientnbr = co.CustomerId
+	                    WHERE twc.deleted = 'Y'
+                    )
+                ", dbCurrentDB);
             }
         }
 

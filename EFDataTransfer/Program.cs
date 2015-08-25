@@ -53,6 +53,19 @@ namespace EFDataTransfer
             try
             {
 
+                ////Console.WriteLine("Waiting for manual transfer of postal code file to database. When ready, copy, modify and run this script: ");
+                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels ON");
+                ////Console.WriteLine("INSERT INTO PostalCodeModels (Id, PostalCode, PostalCodeType, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, StateCode,");
+                ////Console.WriteLine("[State], MunicipalityCode, Municipality, ParishCode, Parish, City2, GateLowest,GateHighest,IsNotValid, PostalAddress)");
+                ////Console.WriteLine("SELECT DISTINCT [Column 17], [Column 6], [Column 0], [Column 2], [Column 4], [Column 7], [Column 8], [Column 9], ");
+                ////Console.WriteLine("[Column 10], [Column 11], [Column 12], [Column 13], [Column 14], [Column 15], [Column 3], [Column 5], 0, [Column 1]");
+                ////Console.WriteLine("FROM [2013-09-18 Gatuadresser-postnummer]");
+                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels OFF");
+                ////Console.WriteLine("Press any key to continue.");
+
+
+                ////Console.ReadKey();
+
                 List<tableProperty> allTables = new List<tableProperty>();
 
                 //tables with no transfer or subtables for transfers
@@ -81,7 +94,7 @@ namespace EFDataTransfer
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts", truncFlag = true, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() {refTable="", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers", truncFlag=true, transferData=false });
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Periods", truncFlag = true, transferData = false }); //Connected to Schedules
                 allTables.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules", truncFlag = false, transferData = true }); // Kontrollera mot postnummer-område.xlsx
 
@@ -92,35 +105,38 @@ namespace EFDataTransfer
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories", truncFlag = false, transferData = true });
 
-                
+
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "ServiceGroups", truncFlag = false, transferData = false });       //Connected to Subscriptions
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Prices", truncFlag = true, transferData = false });//Connected to Subscriptions
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices", truncFlag = true, transferData = true });
-                
-                
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
-                //allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users", truncFlag = false, transferData = true });
 
-                //allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
+
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
+                allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users", truncFlag = false, transferData = true });
+
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
               
 
 
 
                 foreach (tableProperty curTable in allTables)
                 {
+                    if (curTable.tableName == "CleaningObjects" && allTables.FirstOrDefault(x => x.tableName == "PostalAddressModels") == null)
+                        continue;
+
                     //Töm tabellen först
-                    if (curTable.truncFlag==true)
+                    if (curTable.truncFlag == true)
                     {
-                        Console.WriteLine("truncating {0}...",curTable.tableName);
+                        Console.WriteLine("truncating {0}...", curTable.tableName);
                         transferrer.TruncateTable(curTable.tableName);
 
                     }
                     else
                     {
                         Console.WriteLine("Deleting all records in {0}...", curTable.tableName);
-                        transferrer.DeleteTable(curTable.refTable,curTable.refFieldToClean, curTable.tableName);
+                        transferrer.DeleteTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                     }
                     //Kör transfer
                     
@@ -131,21 +147,7 @@ namespace EFDataTransfer
                     }
                 }
 
-                ////Console.WriteLine("TODO: fixa så att kunder får hemadresser!!!");
-                ////return;
-
-                ////Console.WriteLine("Waiting for manual transfer of postal code file to database. When ready, copy, modify and run this script: ");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels ON");
-                ////Console.WriteLine("INSERT INTO PostalCodeModels (Id, PostalCode, PostalCodeType, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, StateCode,");
-                ////Console.WriteLine("[State], MunicipalityCode, Municipality, ParishCode, Parish, City2, GateLowest,GateHighest,IsNotValid, PostalAddress)");
-                ////Console.WriteLine("SELECT DISTINCT [Column 17], [Column 6], [Column 0], [Column 2], [Column 4], [Column 7], [Column 8], [Column 9], ");
-                ////Console.WriteLine("[Column 10], [Column 11], [Column 12], [Column 13], [Column 14], [Column 15], [Column 3], [Column 5], 0, [Column 1]");
-                ////Console.WriteLine("FROM [2013-09-18 Gatuadresser-postnummer]");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels OFF");
-                ////Console.WriteLine("Press any key to continue.");
-
- 
-                ////Console.ReadKey();
+                
 
  
                 ////// Om hemadresser inte kommit över, kör detta:
@@ -159,15 +161,15 @@ namespace EFDataTransfer
                 //////--WHERE deleted = 'N' and is_invoice = 'Y'
 
  
-                //// Verkar som att kontakter för objekt utan kontakter inte kommer över, trots att frågan körs... Om detta är fallet, kör följande manuellt:
+                //// Om kontakter för objekt utan kontakter inte kommer över, kör följande manuellt:
                 ////    INSERT INTO " + dbCurrentDB + ".dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
                 ////    SELECT 1.0, 0, 1, p.Id, co.Id
-                ////    FROM " + dbCurrentDB + ".dbo.Persons p
-                ////    JOIN " + dbCurrentDB + ".dbo.Customers cust ON cust.PersonId = p.Id
-                ////    JOIN " + dbCurrentDB + ".dbo.CleaningObjects co ON co.CustomerId = cust.Id
+                ////    FROM Persons p
+                ////    JOIN Customers cust ON cust.PersonId = p.Id
+                ////    JOIN CleaningObjects co ON co.CustomerId = cust.Id
                 ////    WHERE co.Id NOT IN (
-                ////        SELECT CleaningObjectId FROM " + dbCurrentDB + ".dbo.Contacts
-                ////)
+                ////        SELECT CleaningObjectId FROM Contacts
+                ////    )
 
  
                 /* Har inte tagit med användare i min förändrade lösning
@@ -176,14 +178,32 @@ namespace EFDataTransfer
                  * 
                  */
 
- 
+                /* 
+                 * SetRut() verkar inte köras vid rätt tillfälle (alternativt att den inte är komplett), det finns personer med RUT > 0 och NoPersonalNoValidation == true
+                 * Kontrollera om detta är fallet, kör isf: 
+                 * UPDATE Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM Persons WHERE NoPersonalNoValidation = 1);
+                 * UPDATE Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM Persons WHERE PersonType = 2);
+                 */
 
-                Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
-                Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
-                Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
-                Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
+                //Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
+                //Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
+                //Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
+                //Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
+
+                
 
                 //// Om alla putsobjekt inte får arbetslag kopplade: 
+                //// Kontrolleras med:
+                ////select t.*, wa.*
+                ////FROM eriks_migration.dbo.TW_workareas wa 
+                ////JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id 
+                ////JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
+                ////JOIN Vehicles v ON v.Notes = res.name
+                ////JOIN Teams t ON t.VehicleId = v.Id
+                ////JOIN CleaningObjects co ON co.Id = ca.id
+                ////WHERE ca.postalcode_fixed IS NOT NULL
+                ////AND co.TeamId IS NULL
+                //// Rättas med:
                 ////UPDATE CleaningObjects SET TeamId = t.Id
                 ////FROM eriks_migration.dbo.TW_workareas wa 
                 ////JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id 
@@ -195,15 +215,13 @@ namespace EFDataTransfer
                 ////AND wa.deleted = 'N'
                 ////AND ca.postalcode_fixed IS NOT NULL
 
+
+
                 //transferrer.UtilityTables();
-
-                // TODO:
-                // Ta med kunder med deleted = 'Y' och sätt som inactive
-
  
-                Console.WriteLine("Merging subscriptions");
+                //Console.WriteLine("Merging subscriptions");
 
-                transferrer.MergeSubscriptions();
+                //transferrer.MergeSubscriptions();
             }
             catch (Exception ex)
             {
