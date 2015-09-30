@@ -19,8 +19,9 @@ namespace EFDataTransfer
             //_dataAccess = new DataAccess("Data Source=tcp:x4erdsx1dl.database.windows.net,1433;Initial Catalog=putsa_db;User ID=efits@x4erdsx1dl;Password=Kn4ck3br0d");
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
             //Proddatabasen
-            dbCurrentDB = "eriks_test_db";
+            //dbCurrentDB = "eriks_test_db";
 
+            dbCurrentDB = "eriks_dev_db";
             //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
@@ -280,6 +281,9 @@ namespace EFDataTransfer
                     break;
                 case "SCHEDULES":
                     SchedulesAndPeriods();
+                    Console.WriteLine("Adding schedules to those addresses that lacks them...");
+                    _dataAccess.NonQuery(SqlStrings.UpdateAllPostalCodeScheduleIds);
+
                     break;
                 case "WORKERS":
                     _dataAccess.NonQuery(SqlStrings.TransferWorkers);
@@ -290,7 +294,7 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
                     break;
                 case "TEAMS":
-                    //_dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
+                    _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
                     //Console.WriteLine("Connect Workers with Team...");
                     //_dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
                     Console.WriteLine("Connecting teams to cleaning objects...");

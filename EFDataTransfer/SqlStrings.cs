@@ -321,9 +321,9 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, [Private])
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+                    
+                    INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, [Private])
+                    SELECT header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
                         CASE WHEN ISDATE(content) = 1 AND CONVERT(DATETIME, content) > n.ctime THEN content 
 		                    WHEN n.ctime IS NOT NULL THEN n.ctime ELSE n.ctime END AS StartDate,
                         CASE WHEN ISDATE(content) = 1  THEN content 
@@ -333,7 +333,7 @@ namespace EFDataTransfer
                     JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
                     JOIN {0}.dbo.Customers c on c.Id = cli.clientnbr
                     WHERE n.tag_type LIKE '%anteckning%' AND n.table_name LIKE '%clients%'
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF
+                    
                 ", dbCurrentDB);
             }
         }
@@ -408,9 +408,9 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CustomerId, CreatorId, Private)
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 
+                    
+                    INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CustomerId, CreatorId, Private)
+                    SELECT  header AS Title, content AS [Description], 
 	                    CASE WHEN n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 0 AS [Priority], 
 						CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
                         CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
@@ -419,8 +419,7 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_notes n
                     JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
                     JOIN {0}.dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name LIKE '%clients%' AND n.tag_type LIKE '%ekonomi%' 
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF", dbCurrentDB);
+                    WHERE table_name LIKE '%clients%' AND n.tag_type LIKE '%ekonomi%' ", dbCurrentDB);
             }
         }
 
@@ -448,9 +447,8 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], StartDate, FinishedDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
-                    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 4 AS [Status],
+                                     INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], StartDate, FinishedDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
+                    SELECT  notes.header AS Title, content AS [Description], 4 AS [Status],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
 						CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
 	                    created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
@@ -458,7 +456,7 @@ namespace EFDataTransfer
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                     WHERE table_name LIKE '%workorders%' AND notes.tag_type LIKE '%bestallning%'
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF",
+                   ",
                 dbCurrentDB);
             }
         }
@@ -1159,6 +1157,19 @@ update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105
             return string.Format("UPDATE eriks_migration.dbo.TW_clientaddresses SET postalcode_fixed = {0} WHERE id = {1}", postalCode, id);
         }
 
+        public static string UpdateAllPostalCodeScheduleIds
+        {
+            get
+            {
+                return @"UPDATE X SET X.ToSchedule = X.FromSchedule
+                    FROM (SELECT PCM1.PostalCode,PCM1.ScheduleId As ToSchedule, PCM2.ScheduleId As FromSchedule FROM " + dbCurrentDB + @".dbo.PostalCodeModels PCM1
+                    INNER JOIN  " + dbCurrentDB + @".dbo.PostalCodeModels PCM2 ON PCM1.PostalCode = PCM2.PostalCode
+                    WHERE PCM1.ScheduleId is null AND PCM2.ScheduleId>0) X";
+            }
+
+
+        }
+
         #endregion
 
         public static string SelectPostalCodesWithMultipleSchedules
@@ -1188,5 +1199,7 @@ update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105
         {
             return "UPDATE " + dbCurrentDB + ".dbo.PostalCodeModels SET ScheduleId = " + scheduleId + " WHERE PostalCode = '" + postalCode + "'";
         }
+
+
     }
 }

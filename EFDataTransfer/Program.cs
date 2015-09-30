@@ -69,36 +69,36 @@ namespace EFDataTransfer
                 List<tableProperty> allTables = new List<tableProperty>();
 
                 //tables with no transfer or subtables for transfers
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderTimeReports", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "Invoices", refFieldToClean = "WorkOrderId", tableName = "Workorders", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "InvoiceRows", refFieldToClean = "TransactionId", tableName = "Transactions", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "TransactionValues", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "IssueHistories", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleanings", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleaningServices", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Deviations", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceContacts", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceRows", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "InvoiceId", tableName = "Invoices", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CleaningObjectId", tableName = "CleaningObjects", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderTimeReports", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "Invoices", refFieldToClean = "WorkOrderId", tableName = "Workorders", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "InvoiceRows", refFieldToClean = "TransactionId", tableName = "Transactions", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "TransactionValues", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "IssueHistories", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleanings", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleaningServices", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Deviations", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceContacts", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceRows", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "InvoiceId", tableName = "Invoices", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CleaningObjectId", tableName = "CleaningObjects", truncFlag = false, transferData = false });
 
-                //Tables with transfers
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings", truncFlag = true, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PersonPostalAddressModels", truncFlag = false, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts", truncFlag = true, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers", truncFlag = true, transferData = false });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Periods", truncFlag = true, transferData = false }); //Connected to Schedules
-                allTables.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules", truncFlag = false, transferData = true }); // Kontrollera mot postnummer-område.xlsx
+                 //Tables with transfers
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings", truncFlag = true, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons", truncFlag = false, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PersonPostalAddressModels", truncFlag = false, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels", truncFlag = false, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts", truncFlag = true, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers", truncFlag = false, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks", truncFlag = false, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers", truncFlag = true, transferData = false });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Periods", truncFlag = true, transferData = false }); //Connected to Schedules
+                 allTables.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules", truncFlag = false, transferData = true });  // Kontrollera mot postnummer-område.xlsx
 
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers", truncFlag = false, transferData = true });
+                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams", truncFlag = false, transferData = true });
@@ -107,10 +107,12 @@ namespace EFDataTransfer
 
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services", truncFlag = false, transferData = true });
+                 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "ServiceGroups", truncFlag = false, transferData = false });       //Connected to Subscriptions
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Prices", truncFlag = true, transferData = false });//Connected to Subscriptions
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices", truncFlag = true, transferData = true });
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions", truncFlag = false, transferData = true }); 
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderServices", truncFlag = true, transferData = false });
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices", truncFlag = false, transferData = true });
 
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
