@@ -30,3 +30,5 @@ C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\obj\D
 C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\bin\Debug\EFDataTransfer.exe
 C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\bin\Debug\EFDataTransfer.pdb
 C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\obj\Debug\EFDataTransfer.csprojResolveAssemblyReference.cache
+C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.exe
+C:\Users\Jesper Persson\Documents\Git\EFDataTransfer-master\EFDataTransfer\EFDataTransfer\obj\Debug\EFDataTransfer.pdb
