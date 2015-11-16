@@ -660,6 +660,23 @@ namespace EFDataTransfer
             }
         }
 
+        // Nytt 2015-11-13
+        public static string InsertAdminFeePriceMods
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.CleaningObjectPrices (Modification, CleaningObjectId, ServiceId, ServiceGroupId)
+                    SELECT CASE WHEN twc.invoicefee = 28 THEN 1 ELSE 0 END AS Modification, 
+	                    co.Id AS CleaningObjectId, 
+                        28 AS ServiceId, 
+	                    (SELECT Max(Id) FROM {0}.dbo.ServiceGroups) AS ServiceGroupId
+                    FROM eriks_migration.dbo.TW_clients AS twc
+                    JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = twc.clientnbr
+                ", dbCurrentDB);
+            }
+        }
+
         #endregion
 
         #region select
@@ -834,6 +851,24 @@ namespace EFDataTransfer
                     WHERE wo.deleted = 'N'
                     AND wo.[status] <> 6
                     ORDER BY co.Id DESC, wo.id DESC";
+            }
+        }
+
+        // Nytt 2015-11-13
+        public static string SelectAllPeriods
+        {
+            get
+            {
+                return string.Format(@"    
+                    SELECT subs.Id AS SubscriptionId, pcm.ScheduleId AS ScheduleId, p.ValidForYear AS ValidForYear
+                    FROM {0}.dbo.Subscriptions subs
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = subs.CleaningObjectId
+                    JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                    JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                    JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
+                    WHERE pcm.ScheduleId IS NOT NULL
+                    ORDER BY subs.Id, p.ValidForYear
+                ", dbCurrentDB);
             }
         }
 
@@ -1216,6 +1251,22 @@ namespace EFDataTransfer
                 AND n.header LIKE '%KONTAKT%'
                 AND InfoBeforeCleaning IS NULL
             ";
+            }
+        }
+
+        public static string SetPostalCodeScheduleIds
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.PostalCodeModels SET ScheduleId = sched.Id 
+                    FROM eriks_migration.dbo.TW_workareas wa
+                    JOIN eriks_migration.dbo.TW_clientaddresses ca ON ca.workarea_id = wa.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = ca.id
+                    JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                    JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                    JOIN {0}.dbo.Schedules sched ON sched.Name LIKE '% ' + wa.interlude_num
+                ", dbCurrentDB);
             }
         }
 

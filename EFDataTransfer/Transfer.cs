@@ -21,8 +21,8 @@ namespace EFDataTransfer
             //Proddatabasen
             //dbCurrentDB = "eriks_test_db";
 
-            //dbCurrentDB = "eriks_dev_db";
-            dbCurrentDB = "putsa_db";
+            dbCurrentDB = "eriks_dev_db";
+            //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
 
@@ -346,7 +346,7 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.InsertContactsWhereNeeded);
         }
 
-        private void ConnectTeamsToCleaningObjects()
+        public void ConnectTeamsToCleaningObjects()
         {
             var twWorkAreas = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkAreas);
             var schedules = _dataAccess.SelectIntoTable("SELECT Id, Name FROM " + dbCurrentDB + ".dbo.Schedules");
@@ -414,18 +414,24 @@ namespace EFDataTransfer
 
                 //foreach (DataRow idRow in pcmIds.Rows)
                 //{
-                    var srt = string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"]));
-                    var schedule = schedules.Select(string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"])));
-
+                    
+                    //var schedule = schedules.Select(string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"])));
+               
                     //_dataAccess.NonQuery(string.Format("UPDATE PostalCodeModels SET ScheduleId = {0} WHERE Id = {1}", schedule[0]["Id"], idRow["Id"]));
                 //}
 
-                    _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
+                    //_dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
                     checkInt++;
                     if (checkInt % 1000 == 0)
                         Console.WriteLine(checkInt + " of " + twWorkAreas.Rows.Count + " rows finished...");
 
             }
+        }
+
+        public void SetPostalCodeScheduleIds()
+        {
+            Console.WriteLine("Fixing schedulesIds on PostalCodeModels");
+            _dataAccess.NonQuery(SqlStrings.SetPostalCodeScheduleIds);
         }
 
         // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
@@ -699,7 +705,50 @@ namespace EFDataTransfer
 
             _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
         }
-    
+
+        // Nytt 2015-11-13
+        public void SetAdminFees()
+        {
+            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriods);
+
+            var subscriptionServices = new DataTable();
+            subscriptionServices.Columns.AddRange(new DataColumn[] {
+                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("SubscriptionId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("PeriodNo", typeof(int))
+            });
+            
+            int periodNo = 1;
+            int subscriptionId = Convert.ToInt32(periods.Rows[0]["SubscriptionId"]);
+
+            foreach (DataRow row in periods.Rows)
+            {
+                int rowSubscriptionId = Convert.ToInt32(row["SubscriptionId"]);
+
+                if (subscriptionId != rowSubscriptionId)
+                {
+                    periodNo = 1;
+                    subscriptionId = rowSubscriptionId;
+                }
+                
+                subscriptionServices.Rows.Add(new object[] { 0, rowSubscriptionId, 28, periodNo });
+
+                periodNo++;
+            }
+
+            var mappings = new SqlBulkCopyColumnMapping[] {
+                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
+            };
+
+            _dataAccess.InsertMany(dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+
+            _dataAccess.NonQuery(SqlStrings.InsertAdminFeePriceMods);
+        }
+
         private void FixPostalCodes()
         {
             var twClientAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWClientAddresses);
