@@ -706,10 +706,75 @@ namespace EFDataTransfer
             _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
         }
 
+        public void SetBasePriceAndInactive()
+        {
+            _dataAccess.NonQuery(SqlStrings.SetEmptySubscriptionsInactive);
+
+            var cleaningObjectPrices = new DataTable();
+            cleaningObjectPrices.Columns.AddRange(new DataColumn[]
+            {
+                new DataColumn("Modification", typeof(float)),
+                new DataColumn("CleaningObjectId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("ServiceGroupId", typeof(int))
+            });
+
+            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriodsForEmptySubs(DateTime.Now.Year));
+
+            var subscriptionServices = new DataTable();
+            subscriptionServices.Columns.AddRange(new DataColumn[] {
+                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("SubscriptionId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("PeriodNo", typeof(int))
+            });
+
+            int periodNo = 0;
+            int subscriptionId = 0;
+
+            int serviceGroupId = Convert.ToInt32(_dataAccess.SelectIntoTable(string.Format("SELECT Max(Id) AS Id FROM {0}.dbo.ServiceGroups", dbCurrentDB)).Rows[0]["Id"]);
+
+            foreach (DataRow row in periods.Rows)
+            {
+                int rowSubscriptionId = Convert.ToInt32(row["SubscriptionId"]);
+
+                if (subscriptionId != rowSubscriptionId)
+                {
+                    cleaningObjectPrices.Rows.Add(new object[] { 1.0, row["CleaningObjectId"], 1, serviceGroupId });
+
+                    periodNo = 1;
+                    subscriptionId = rowSubscriptionId;
+                }
+
+                subscriptionServices.Rows.Add(new object[] { 0, rowSubscriptionId, 28, periodNo });
+
+                periodNo++;
+            }
+
+            var mappings = new SqlBulkCopyColumnMapping[] {
+                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
+            };
+
+            _dataAccess.InsertMany(dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+
+            mappings = new SqlBulkCopyColumnMapping[]
+            {
+                new SqlBulkCopyColumnMapping("Modification", "Modification"),
+                new SqlBulkCopyColumnMapping("CleaningObjectId", "CleaningObjectId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("ServiceGroupId", "ServiceGroupId")
+            };
+
+            _dataAccess.InsertMany(dbCurrentDB + ".dbo.CleaningObjectPrices", cleaningObjectPrices, false, mappings);
+        }
+
         // Nytt 2015-11-13
         public void SetAdminFees()
         {
-            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriods);
+            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriods(DateTime.Now.Year));
 
             var subscriptionServices = new DataTable();
             subscriptionServices.Columns.AddRange(new DataColumn[] {
@@ -788,13 +853,15 @@ namespace EFDataTransfer
         {
             string sqlTemp;
 
-            sqlTemp="SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks ON INSERT INTO " + dbCurrentDB + ".dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks OFF";
+            sqlTemp="SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks ON INSERT INTO " + dbCurrentDB + ".dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) SET IDENTITY_INSERT " + 
+                dbCurrentDB + ".dbo.TableLocks OFF";
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.TableLocks").Rows.Count == 0)
                 _dataAccess.NonQuery(
                     @sqlTemp);
 
-            sqlTemp = "SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers ON INSERT INTO " + dbCurrentDB + ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers OFF";
+            sqlTemp = "SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers ON INSERT INTO " + dbCurrentDB + 
+                ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1000000) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers OFF";
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.NextInvoiceNumbers").Rows.Count == 0)
                 _dataAccess.NonQuery(
@@ -996,6 +1063,30 @@ namespace EFDataTransfer
 
                 _dataAccess.NonQuery(SqlStrings.SetTeamIdOnCleaningObject(Convert.ToInt32(row["Id"]), Convert.ToInt32(possibleTeamId.Rows[0]["TeamId"])));
             }
+        }
+
+        public void AddContactsWhereMissing()
+        {
+            _dataAccess.NonQuery(SqlStrings.AddContactsToCustomersWithout);
+            _dataAccess.NonQuery(SqlStrings.AddContactsToCleaningObjectsWithout);
+        }
+
+        public void FixRUT()
+        {
+            _dataAccess.NonQuery(SqlStrings.UpdateRUTOnContacts);
+            _dataAccess.NonQuery(SqlStrings.SetNoRUTAfter);
+
+            var coIds = _dataAccess.SelectIntoTable(SqlStrings.GetCoIdsFromContactsWithTooMuchRut);
+            foreach (DataRow row in coIds.Rows)
+            {
+                var contacts = _dataAccess.SelectIntoTable(string.Format("SELECT Id, RUT FROM {0}.dbo.Contacts WHERE CleaningObjectId = {1}", dbCurrentDB,
+                    Convert.ToInt32(row["CleaningObjectId"])));
+
+
+            }
+
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", dbCurrentDB));
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));
         }
     }
 }

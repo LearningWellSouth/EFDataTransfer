@@ -210,8 +210,8 @@ namespace EFDataTransfer
         {
             get
             {
-                return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.ServiceGroups ([From], [To], Name) OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '2015')", 
-                    DateTime.Now.Year.ToString() + "-1-1", DateTime.Now + new TimeSpan(365, 0, 0, 0));
+                return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.ServiceGroups ([From], [To], Name) OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}')", 
+                    DateTime.Now.Year.ToString() + "-1-1", DateTime.Now.Year.ToString() + "-12-31", DateTime.Now.Year);
             }
         }
 
@@ -381,7 +381,7 @@ namespace EFDataTransfer
 	                    CASE WHEN visible_invoice = 'Y' THEN 1 ELSE 0 END AS VisibleOnInvoice,
 	                    CASE WHEN servicetype_id IN (1, 3) THEN 1 ELSE 0 END AS IsSalarySetting,
 	                    id AS SortOrder,
-	                    CASE WHEN name = 'BV - Grundpris' THEN 1 ELSE 0 END AS IsDefault,
+	                    CASE WHEN name = 'BV - Grundpris' OR name = 'Inställelse- o adm.avgift' THEN 1 ELSE 0 END AS IsDefault,
 	                    CASE 
 		                    WHEN name = 'BV - Grundpris' THEN 10
 		                    WHEN category_id = 1 THEN 2
@@ -667,12 +667,13 @@ namespace EFDataTransfer
             {
                 return string.Format(@"
                     INSERT INTO {0}.dbo.CleaningObjectPrices (Modification, CleaningObjectId, ServiceId, ServiceGroupId)
-                    SELECT CASE WHEN twc.invoicefee = 28 THEN 1 ELSE 0 END AS Modification, 
+                    SELECT CASE WHEN twc.invoicefee = 28 OR twc.invoicefee = 1 THEN 1 ELSE 0 END AS Modification, 
 	                    co.Id AS CleaningObjectId, 
                         28 AS ServiceId, 
 	                    (SELECT Max(Id) FROM {0}.dbo.ServiceGroups) AS ServiceGroupId
                     FROM eriks_migration.dbo.TW_clients AS twc
                     JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = twc.clientnbr
+                    WHERE twc.deleted = 'N'
                 ", dbCurrentDB);
             }
         }
@@ -855,21 +856,34 @@ namespace EFDataTransfer
         }
 
         // Nytt 2015-11-13
-        public static string SelectAllPeriods
+        public static string SelectAllPeriods(int validForYear)
         {
-            get
-            {
-                return string.Format(@"    
-                    SELECT subs.Id AS SubscriptionId, pcm.ScheduleId AS ScheduleId, p.ValidForYear AS ValidForYear
-                    FROM {0}.dbo.Subscriptions subs
-                    JOIN {0}.dbo.CleaningObjects co ON co.Id = subs.CleaningObjectId
-                    JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
-                    JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
-                    JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
-                    WHERE pcm.ScheduleId IS NOT NULL
-                    ORDER BY subs.Id, p.ValidForYear
-                ", dbCurrentDB);
-            }
+            return string.Format(@"
+                SELECT subs.Id AS SubscriptionId, p.Id
+                FROM {0}.dbo.CleaningObjects co
+                JOIN {0}.dbo.Subscriptions subs ON subs.CleaningObjectId = co.Id
+                JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
+                WHERE p.ValidForYear = {1}
+                ORDER BY subs.Id
+            ", dbCurrentDB, validForYear);
+        }
+
+        public static string SelectAllPeriodsForEmptySubs(int validForYear)
+        {
+            return string.Format(@"
+                SELECT subs.Id AS SubscriptionId, p.Id, co.Id AS CleaningObjectId
+                FROM {0}.dbo.CleaningObjects co
+                JOIN {0}.dbo.Subscriptions subs ON subs.CleaningObjectId = co.Id
+                LEFT JOIN {0}.dbo.SubscriptionServices ss ON ss.SubscriptionId = subs.Id
+                JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
+                WHERE p.ValidForYear = {1}
+                AND ss.Id IS NULL
+                ORDER BY subs.Id
+            ", dbCurrentDB, validForYear);
         }
 
         public static string SelectTWWorkOrderLines
@@ -1213,6 +1227,31 @@ namespace EFDataTransfer
             }
         }
 
+        public static string SetEmptySubscriptionsInactive
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Subscriptions SET IsInactive = 1
+                    WHERE Id IN (
+                        SELECT s.Id FROM {0}.dbo.Subscriptions s
+                        LEFT JOIN {0}.dbo.SubscriptionServices ss ON ss.SubscriptionId = s.Id
+                        WHERE ss.Id IS NULL
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string InsertBaseFees
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.SubscriptionServices (
+                ", dbCurrentDB);
+            }
+        }
+
         public static string SetRUT
         {
             get
@@ -1365,6 +1404,82 @@ namespace EFDataTransfer
             return "UPDATE " + dbCurrentDB + ".dbo.PostalCodeModels SET ScheduleId = " + scheduleId + " WHERE PostalCode = '" + postalCode + "'";
         }
 
+        public static string AddContactsToCustomersWithout
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
+                    SELECT 1.0, 0, 1, c.PersonId, co.Id
+                    FROM {0}.dbo.Customers c
+                    JOIN {0}.dbo.CleaningObjects co ON c.Id = co.CustomerId
+                    WHERE c.PersonId NOT IN (
+                        SELECT PersonId FROM {0}.dbo.Contacts
+                    )
+                ", dbCurrentDB);
+            }
+        }
 
+        public static string AddContactsToCleaningObjectsWithout
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
+                    SELECT 1.0, 0, 1, p.Id, co.Id
+                    FROM {0}.dbo.Persons p
+                    JOIN {0}.dbo.Customers cust ON cust.PersonId = p.Id
+                    JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = cust.Id
+                    WHERE co.Id NOT IN(
+                        SELECT CleaningObjectId FROM {0}.dbo.Contacts
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string UpdateRUTOnContacts
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot IN (0, 1) THEN
+                            CASE WHEN twc.taxreduction_percentage = 0 THEN 1 ELSE twc.taxreduction_percentage / 100 END
+                        ELSE 0 END
+                    FROM {0}.dbo.Customers c
+                    JOIN {0}.dbo.Persons p ON c.PersonId = p.Id
+                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
+                    JOIN {0}.dbo.Contacts con ON con.PersonId = p.Id
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string SetNoRUTAfter
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Persons SET NoTaxReductionAfter = '{1}'
+                    FROM {0}.dbo.Customers c
+                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
+                    WHERE twc.full_reduction_pot = 1
+                ", dbCurrentDB, DateTime.Now.AddDays(-1));
+            }
+        }
+
+        public static string GetCoIdsFromContactsWithTooMuchRut
+        {
+            get
+            {
+                return string.Format(@"
+                    SELECT DISTINCT c.CleaningObjectId FROM {0}.dbo.Contacts c
+                    JOIN (
+                        SELECT CleaningObjectId, SUM(RUT) AS rutSum FROM {0}.dbo.Contacts
+                        GROUP BY CleaningObjectId
+                    ) x
+                    ON x.CleaningObjectId = c.CleaningObjectId
+                    WHERE rutSum > 1                    
+                ", dbCurrentDB);
+            }
+        }
     }
 }
