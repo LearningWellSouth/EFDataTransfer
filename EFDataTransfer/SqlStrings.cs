@@ -674,6 +674,7 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_clients AS twc
                     JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = twc.clientnbr
                     WHERE twc.deleted = 'N'
+                    AND twc.mother_id = 0
                 ", dbCurrentDB);
             }
         }
@@ -1030,7 +1031,7 @@ namespace EFDataTransfer
                 FROM eriks_migration.dbo.TW_notes notes
                 JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                 JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                WHERE notes.id = {1}
+                WHERE notes.table_id = {1} AND notes.tag_type LIKE '%uppdrag_under%'
             ", dbCurrentDB, id);
         }
 
@@ -1410,7 +1411,7 @@ namespace EFDataTransfer
             {
                 return string.Format(@"
                     INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
-                    SELECT 1.0, 0, 1, c.PersonId, co.Id
+                    SELECT 0.0, 0, 1, c.PersonId, co.Id
                     FROM {0}.dbo.Customers c
                     JOIN {0}.dbo.CleaningObjects co ON c.Id = co.CustomerId
                     WHERE c.PersonId NOT IN (
@@ -1426,7 +1427,7 @@ namespace EFDataTransfer
             {
                 return string.Format(@"
                     INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
-                    SELECT 1.0, 0, 1, p.Id, co.Id
+                    SELECT 0.0, 0, 1, p.Id, co.Id
                     FROM {0}.dbo.Persons p
                     JOIN {0}.dbo.Customers cust ON cust.PersonId = p.Id
                     JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = cust.Id
@@ -1442,7 +1443,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot IN (0, 1) THEN
+                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot = 0 THEN
                             CASE WHEN twc.taxreduction_percentage = 0 THEN 1 ELSE twc.taxreduction_percentage / 100 END
                         ELSE 0 END
                     FROM {0}.dbo.Customers c
@@ -1453,16 +1454,22 @@ namespace EFDataTransfer
             }
         }
 
-        public static string SetNoRUTAfter
+        public static string UpdateRUTByMainTWContacts
         {
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.Persons SET NoTaxReductionAfter = '{1}'
-                    FROM {0}.dbo.Customers c
-                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
-                    WHERE twc.full_reduction_pot = 1
-                ", dbCurrentDB, DateTime.Now.AddDays(-1));
+                    UPDATE {0}.dbo.Contacts SET RUT = 0
+                    WHERE PersonId IN (
+	                    SELECT distinct twcons.id
+	                    FROM {0}.dbo.Customers c
+	                    JOIN {0}.dbo.Persons p ON c.PersonId = p.Id
+	                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
+	                    JOIN eriks_migration.dbo.TW_clients twcons ON twcons.mother_id = twc.id
+	                    JOIN {0}.dbo.Contacts con ON con.PersonId = p.Id
+	                    WHERE twc.full_reduction_pot = 0
+                    )
+                ", dbCurrentDB);
             }
         }
 

@@ -25,8 +25,6 @@ namespace EFDataTransfer
             //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
-
-
         }
 
         private void Addresses()
@@ -934,12 +932,12 @@ namespace EFDataTransfer
             _dataAccess.InsertMany(dbCurrentDB + ".dbo.Issues", issues, false, mappings);
         }
 
-        private void TransferCleaningObjectInfo(DataTable noteIds, string infoField, bool includeHeader)
+        private void TransferCleaningObjectInfo(DataTable noteTableIds, string infoField, bool includeHeader)
         {
-            foreach (DataRow noteRow in noteIds.Rows)
+            foreach (DataRow noteRow in noteTableIds.Rows)
             {
-                int noteId = Convert.ToInt32(noteRow["table_id"]);
-                var contentTable = _dataAccess.SelectIntoTable(SqlStrings.SelectTwNoteAndCleaningObjectId(noteId));
+                int noteTableId = Convert.ToInt32(noteRow["table_id"]);
+                var contentTable = _dataAccess.SelectIntoTable(SqlStrings.SelectTwNoteAndCleaningObjectId(noteTableId));
 
                 int coId = 0;
                 string content = string.Empty;
@@ -1073,18 +1071,9 @@ namespace EFDataTransfer
 
         public void FixRUT()
         {
+            _dataAccess.NonQuery(SqlStrings.UpdateRUTByMainTWContacts);
             _dataAccess.NonQuery(SqlStrings.UpdateRUTOnContacts);
-            _dataAccess.NonQuery(SqlStrings.SetNoRUTAfter);
-
-            var coIds = _dataAccess.SelectIntoTable(SqlStrings.GetCoIdsFromContactsWithTooMuchRut);
-            foreach (DataRow row in coIds.Rows)
-            {
-                var contacts = _dataAccess.SelectIntoTable(string.Format("SELECT Id, RUT FROM {0}.dbo.Contacts WHERE CleaningObjectId = {1}", dbCurrentDB,
-                    Convert.ToInt32(row["CleaningObjectId"])));
-
-
-            }
-
+            
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", dbCurrentDB));
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));
         }
