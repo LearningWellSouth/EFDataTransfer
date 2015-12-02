@@ -17,6 +17,24 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+#output directories
+Output/
+bin/
+obj/
+Release/
+Debug/
+
+#visual studio crappy intermediary files
+*.user
+*.local
+
+#debug output
+*.pdb
+
+#binaries
+*.exe
+*.dll
+
 # =========================
 # Operating System Files
 # =========================
