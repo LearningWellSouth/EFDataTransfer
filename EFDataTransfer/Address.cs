@@ -55,7 +55,9 @@ namespace EFDataTransfer
     public static string ExtractPostalNumber(string postalNumber)
     {
       if(string.IsNullOrEmpty(postalNumber)) return "";
-      return Regex.Replace(postalNumber, @"[^\d]","").PadLeft(5,'0').Substring(0, 5);
+      var number = ExtractBeginingOfStringAsInteger(postalNumber);
+      if (number > 0) return number.ToString().Substring(0,5);
+      return postalNumber;
     }
   }
 }
