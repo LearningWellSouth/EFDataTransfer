@@ -27,6 +27,7 @@ Debug/
 #visual studio crappy intermediary files
 *.user
 *.local
+*.suo
 
 #debug output
 *.pdb
