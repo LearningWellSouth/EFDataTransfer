@@ -45,30 +45,15 @@ namespace EFDataTransfer
 
     public class Program
     {
-        // Dropbox/CV/EF Arbetskatalog/Migrering/App
         static void Main(string[] args)
         {
-            var transferrer = new Transfer();
-
             try
             {
-
-                ////Console.WriteLine("Waiting for manual transfer of postal code file to database. When ready, copy, modify and run this script: ");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels ON");
-                ////Console.WriteLine("INSERT INTO PostalCodeModels (Id, PostalCode, PostalCodeType, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, StateCode,");
-                ////Console.WriteLine("[State], MunicipalityCode, Municipality, ParishCode, Parish, City2, GateLowest,GateHighest,IsNotValid, PostalAddress)");
-                ////Console.WriteLine("SELECT DISTINCT [Column 17], [Column 6], [Column 0], [Column 2], [Column 4], [Column 7], [Column 8], [Column 9], ");
-                ////Console.WriteLine("[Column 10], [Column 11], [Column 12], [Column 13], [Column 14], [Column 15], [Column 3], [Column 5], 0, [Column 1]");
-                ////Console.WriteLine("FROM [2013-09-18 Gatuadresser-postnummer]");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels OFF");
-                ////Console.WriteLine("Press any key to continue.");
-
-
-                ////Console.ReadKey();
-
-                List<tableProperty> allTables = new List<tableProperty>();
+              var transferrer = new Transfer();
+              List<tableProperty> allTables = new List<tableProperty>();
 
                 //tables with no transfer or subtables for transfers
+              // TODO : is this the complete list of tables?
                  allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
                  allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
                  allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers", truncFlag = true, transferData = false });
@@ -126,19 +111,18 @@ namespace EFDataTransfer
                 foreach (tableProperty curTable in allTables)
                 {
                     if (curTable.tableName == "CleaningObjects" && allTables.FirstOrDefault(x => x.tableName == "PostalAddressModels") == null)
-                        continue;
+                        continue;// TODO : WTF?! I sincerely hope that allTables is NOT modified within the itteration
 
                     //Töm tabellen först
-                    if (curTable.truncFlag == true)
+                    if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                     {
                         Console.WriteLine("truncating {0}...", curTable.tableName);
                         transferrer.TruncateTable(curTable.tableName);
-
                     }
                     else
                     {
                         Console.WriteLine("Deleting all records in {0}...", curTable.tableName);
-                        transferrer.DeleteTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
+                        transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                     }
                     //Kör transfer
                     
@@ -148,86 +132,10 @@ namespace EFDataTransfer
                         transferrer.TransferData(curTable.tableName);
                     }
                 }
-
-                
-
- 
-                ////// Om hemadresser inte kommit över, kör detta:
-                //////--insert into " + dbCurrentDB + ".dbo.PersonPostalAddressModels (PostalAddressModelId, PersonId, [Type])
-                //////--select distinct PostalAddressModelId, PersonId, 4
-                //////--from eriks_migration.dbo.TW_clientaddresses twcad
-                //////--JOIN " + dbCurrentDB + ".dbo.PostalCodeModels pcm ON twcad.postalcode_fixed = pcm.PostalCode
-                //////--JOIN " + dbCurrentDB + ".dbo.PostalAddressModels pam ON pcm.Id = pam.PostalCodeModelId
-                //////--JOIN " + dbCurrentDB + ".dbo.PersonPostalAddressModels ppam ON ppam.PostalAddressModelId = pam.Id
-                //////--join " + dbCurrentDB + ".dbo.Persons p on p.Id = ppam.PersonId
-                //////--WHERE deleted = 'N' and is_invoice = 'Y'
-
- 
-                //// Om kontakter för objekt utan kontakter inte kommer över, kör följande manuellt:
-                ////    INSERT INTO " + dbCurrentDB + ".dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
-                ////    SELECT 1.0, 0, 1, p.Id, co.Id
-                ////    FROM Persons p
-                ////    JOIN Customers cust ON cust.PersonId = p.Id
-                ////    JOIN CleaningObjects co ON co.CustomerId = cust.Id
-                ////    WHERE co.Id NOT IN (
-                ////        SELECT CleaningObjectId FROM Contacts
-                ////    )
-
- 
-                /* Har inte tagit med användare i min förändrade lösning
-                 * Tänker att de ska vara oförändrade som de är idag eller läggas upp manuellt
-                 * i det nya systemet
-                 * 
-                 */
-
-                /* 
-                 * SetRut() verkar inte köras vid rätt tillfälle (alternativt att den inte är komplett), det finns personer med RUT > 0 och NoPersonalNoValidation == true
-                 * Kontrollera om detta är fallet, kör isf: 
-                 * UPDATE Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM Persons WHERE NoPersonalNoValidation = 1);
-                 * UPDATE Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM Persons WHERE PersonType = 2);
-                 */
-
-                //Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
-                //Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
-                //Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
-                //Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
-
-                
-
-                //// Om alla putsobjekt inte får arbetslag kopplade: 
-                //// Kontrolleras med:
-                ////select t.*, wa.*
-                ////FROM eriks_migration.dbo.TW_workareas wa 
-                ////JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id 
-                ////JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
-                ////JOIN Vehicles v ON v.Notes = res.name
-                ////JOIN Teams t ON t.VehicleId = v.Id
-                ////JOIN CleaningObjects co ON co.Id = ca.id
-                ////WHERE ca.postalcode_fixed IS NOT NULL
-                ////AND co.TeamId IS NULL
-                //// Rättas med:
-                ////UPDATE CleaningObjects SET TeamId = t.Id
-                ////FROM eriks_migration.dbo.TW_workareas wa 
-                ////JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id 
-                ////JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
-                ////JOIN " + dbCurrentDB + ".dbo.Vehicles v ON v.Notes = res.name
-                ////JOIN " + dbCurrentDB + ".dbo.Teams t ON t.VehicleId = v.Id
-                ////JOIN CleaningObjects co ON co.Id = ca.id
-                ////WHERE ca.deleted = 'N'
-                ////AND wa.deleted = 'N'
-                ////AND ca.postalcode_fixed IS NOT NULL
-
-
-
-                //transferrer.UtilityTables();
- 
-                //Console.WriteLine("Merging subscriptions");
-
-                //transferrer.MergeSubscriptions();
-            }
+         }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.Message+@"\n\r"+ex.StackTrace);
             }
 
             Console.WriteLine("Done. Press any key to quit.");
