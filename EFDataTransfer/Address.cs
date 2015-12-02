@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace EFDataTransfer
@@ -10,13 +11,9 @@ namespace EFDataTransfer
     public int StreetNumber;
     public string StreetNumberFull;
     public string PostalNumber;
+    public string City;
 
-    public static Address makeEmpty()
-    {
-      return new Address() { StreetName = "", StreetNumberFull = "", StreetNumber = 0 };
-    }
-
-    public static Address extractAddressParts(object address, object postalNumber)
+    public static Address extractAddressParts(object address, object postalNumber, object city)
     {
       if (address == null)
         throw new NullReferenceException();
@@ -27,8 +24,15 @@ namespace EFDataTransfer
         StreetName = extractStreetName(match),
         StreetNumber = extractStreetNumber(match),
         StreetNumberFull = match[2].Value.Trim(),
-        PostalNumber = ExtractPostalNumber(Convert.ToString(postalNumber))
+        PostalNumber = ExtractPostalNumber(Convert.ToString(postalNumber)),
+        City = ExtractCity(Convert.ToString(city))
       };
+    }
+
+    private static string ExtractCity(string city)
+    {
+      if (string.IsNullOrEmpty(city)) return "";
+      return city.ToUpper(CultureInfo.InvariantCulture).Trim();
     }
     private static string extractStreetName(GroupCollection groups)
     {
@@ -52,12 +56,11 @@ namespace EFDataTransfer
       return (StreetNumber%2) == 0;
     }
 
-    public static string ExtractPostalNumber(string postalNumber)
+    private static string ExtractPostalNumber(string postalNumber)
     {
       if(string.IsNullOrEmpty(postalNumber)) return "";
       var number = ExtractBeginingOfStringAsInteger(postalNumber);
-      if (number > 0) return number.ToString().Substring(0,5);
-      return postalNumber;
+      return number > 0 ? number.ToString().Substring(0,5) : postalNumber;
     }
   }
 }

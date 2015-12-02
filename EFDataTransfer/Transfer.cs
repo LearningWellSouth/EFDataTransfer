@@ -63,27 +63,17 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("Type", "Type")
             };
 
-            int checkInt = 0;
+            var recordNumber = 0;
             foreach (DataRow clientRecord in twAddresses.Rows)
             {
 
-                checkInt++;
-                if (checkInt % 1000 == 0)
-                    Console.WriteLine(checkInt + " of " + twAddresses.Rows.Count + " rows finished...");
+                recordNumber++;
+                if (recordNumber % 1000 == 0)
+                    Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-                //string postalCodeStr = Convert.ToString(clientRecord["postalcode_fixed"]);
+                var parsedAddress = Address.extractAddressParts(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
 
-                /*if (string.IsNullOrEmpty(postalCodeStr)) //TODO : why would a postal code of NULL be acceptable for further processing?
-                {
-                    if (!new int[] { 997, 3110, 3194, 3635, 3689, 5360, 7816, 7823, 8139, 10917 }.Contains(Convert.ToInt32(clientRecord["id"])))
-                        continue; // TODO : what is so special with these rows? They belong to the french and swiz people
-                    //else postalCodeStr = "'" + Convert.ToString(clientRecord["postalcode"]) + "'"; //TODO : delimited by singlequotes much to early. Doesn't have the same format as normal postal codes
-                }*/
-
-                string city = Convert.ToString(clientRecord["city"]).ToUpper().Trim();
-                var parsedAddress = Address.extractAddressParts(clientRecord["address"],clientRecord["postalcode"]);
-
-                 var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", city, parsedAddress.StreetName));
+                 var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));
 
                   int postalCodeModelId = 0;
                   if (possiblePostalCodeModels.Any())
@@ -96,7 +86,7 @@ namespace EFDataTransfer
 
                 if (postalCodeModelId == 0)
                 {
-                  postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress.PostalNumber, parsedAddress, city);
+                  postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress.PostalNumber, parsedAddress, parsedAddress.City);
                 }
 
                 var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
@@ -261,7 +251,6 @@ namespace EFDataTransfer
                     break;
                 default:
                     throw new ArgumentException("No migration for "+tableName);
-                    break;
             }
         }
 

@@ -44,9 +44,23 @@ namespace EFDataTransfer.Test
       Assert.AreEqual("GB-KT112EX", extractPostalNumber("GB-KT112EX"));
     }
 
+    [TestMethod]
+    public void ExtractingCity()
+    {
+      Assert.AreEqual("", extractCity(null));
+      Assert.AreEqual("", extractCity(""));
+      Assert.AreEqual("CITY", extractCity("city"));
+      Assert.AreEqual("CITY", extractCity(" \t\ncity\t\n "));
+    }
+
+    private string extractCity(string city)
+    {
+      return Address.extractAddressParts("", null, city).City;
+    }
+
     private static string extractPostalNumber(string postalNumber)
     {
-      return Address.extractAddressParts("",postalNumber).PostalNumber;
+      return Address.extractAddressParts("",postalNumber,null).PostalNumber;
     }
 
     [TestMethod]
@@ -65,7 +79,7 @@ namespace EFDataTransfer.Test
 
     private Address extractAddress(string addr)
     {
-      return Address.extractAddressParts(addr,null);
+      return Address.extractAddressParts(addr,null,null);
     }
 
     private void AssertAddressPartsAre(string address, string expectName, int expectNumber)
@@ -87,13 +101,13 @@ namespace EFDataTransfer.Test
         work();
         Assert.Fail("no exception thrown");
       }
-      catch (T exc)
+      catch (T)
       {
         Assert.IsTrue(true);
       }
       catch (Exception exc)
       {
-        Assert.Fail("wrong type of exception thown. Expected: "+typeof (T)+" was "+exc.ToString());
+        Assert.Fail("wrong type of exception thown. Expected: "+typeof (T)+" was "+exc);
       }
     }
   }
