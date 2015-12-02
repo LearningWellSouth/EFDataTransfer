@@ -128,7 +128,7 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
 
 
-
+            transferrer.TransferNewEmployees(); // När en ny användare kommer in i systemet kraschar migreringen om den inte läggs in
 
             foreach (tableProperty curTable in allTables)
             {

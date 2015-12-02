@@ -21,8 +21,8 @@ namespace EFDataTransfer
             //Proddatabasen
             //dbCurrentDB = "eriks_test_db";
 
-            dbCurrentDB = "eriks_dev_db";
-            //dbCurrentDB = "putsa_db";
+            //dbCurrentDB = "eriks_dev_db";
+            dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
         }
@@ -461,6 +461,11 @@ namespace EFDataTransfer
         {
             _dataAccess.NonQuery(SqlStrings.TransferEmployees);
         }
+
+        public void TransferNewEmployees()
+        {
+            _dataAccess.NonQuery(SqlStrings.TransferNewEmployees);
+        }
   
         private void SchedulesAndPeriods()
         {
@@ -632,6 +637,9 @@ namespace EFDataTransfer
                     mod = (float)Math.Round((decimal)(woPrice / sPrice), 4);
                 else if (sPrice == 0 && woPrice != 0)
                     mod = (float)woPrice;
+
+                if (mod > 0)
+                    mod = (float)Math.Round(mod * 1.25f, 4);
 
                 coPrices.Rows.Add(new object[] { coId, Convert.ToInt32(row["ServiceId"]), mod, Convert.ToString(row["wolDesc"]) });
             }
@@ -957,7 +965,7 @@ namespace EFDataTransfer
                     coId = Convert.ToInt32(contentRow["coId"]);
                 }
 
-                _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjects SET {1} = '{2}' WHERE Id = {3}", dbCurrentDB, infoField, content, coId));
+                _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjects SET {1} = '{2}' WHERE Id = {3}", dbCurrentDB, infoField, content.Replace("'", "''"), coId));
             }
         }
   

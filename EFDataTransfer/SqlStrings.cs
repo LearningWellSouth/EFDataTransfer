@@ -337,6 +337,21 @@ namespace EFDataTransfer
             }
         }
 
+        public static string TransferNewEmployees
+        {
+            get
+            {
+                return @"
+                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
+                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
+                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
+                    FROM eriks_migration.dbo.TW_employees e
+                    WHERE deleted = 'N'
+                    AND e.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Users)
+                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
+            }
+        }
+
         public static string TransferServices
         {
             get
@@ -567,6 +582,7 @@ namespace EFDataTransfer
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                     WHERE table_name LIKE '%workorders%' AND notes.tag_type LIKE '%bestallning%'
+                    
                    ",
                 dbCurrentDB);
             }
@@ -1081,7 +1097,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = content
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = REPLACE(content, '''', ':')
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
@@ -1125,7 +1141,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = CONCAT(header, ' - ', content)
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = CONCAT(header, ' - ', REPLACE(content, '''', ':'))
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
