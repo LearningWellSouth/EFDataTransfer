@@ -6,7 +6,7 @@ namespace EFDataTransfer
 {
   public struct Address
   {
-    private static readonly Regex Matcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
+    private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
     public string StreetName;
     public int StreetNumber;
     public string StreetNumberFull;
@@ -17,7 +17,7 @@ namespace EFDataTransfer
     {
       if (address == null)
         throw new NullReferenceException();
-      var match = Matcher.Match(Convert.ToString(address)).Groups;
+      var match = StreetAddressMatcher.Match(Convert.ToString(address)).Groups;
 
       return new Address()
       {
@@ -58,9 +58,16 @@ namespace EFDataTransfer
 
     private static string ExtractPostalNumber(string postalNumber)
     {
-      if(string.IsNullOrEmpty(postalNumber)) return "";
-      var number = ExtractBeginingOfStringAsInteger(postalNumber);
-      return number > 0 ? number.ToString().Substring(0,5) : postalNumber;
+      postalNumber = postalNumber.Trim();
+      var numeric = ExtractBeginingOfStringAsInteger(postalNumber);
+      if (numeric > 9999 && numeric < 99999) return numeric.ToString();
+
+      return !isValidEnglishOrFrenchPostalNumber(postalNumber) ? null : postalNumber;
+    }
+
+    private static bool isValidEnglishOrFrenchPostalNumber(string val)
+    {
+      return Regex.IsMatch(val, @"^\D{2}-.{4,8}$");
     }
   }
 }

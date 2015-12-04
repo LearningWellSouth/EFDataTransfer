@@ -34,13 +34,15 @@ namespace EFDataTransfer.Test
     [TestMethod]
     public void ExtractingPostalNumber()
     {
-      Assert.AreEqual("", extractPostalNumber(null));
-      Assert.AreEqual("", extractPostalNumber(""));
+      Assert.AreEqual(null, extractPostalNumber(null));
+      Assert.AreEqual(null, extractPostalNumber(""));
+      Assert.AreEqual(null, extractPostalNumber("Vetlanda"));
+      Assert.AreEqual(null, extractPostalNumber("123"));
+      Assert.AreEqual("12345", extractPostalNumber("  12345  "));
       Assert.AreEqual("12345", extractPostalNumber("12345"));
       Assert.AreEqual("24233", extractPostalNumber("24233Höör"));
       Assert.AreEqual("CH-1073", extractPostalNumber("CH-1073"));
       Assert.AreEqual("BE-1380", extractPostalNumber("BE-1380"));
-      Assert.AreEqual("12345", extractPostalNumber("1234567890"));
       Assert.AreEqual("GB-KT112EX", extractPostalNumber("GB-KT112EX"));
     }
 
