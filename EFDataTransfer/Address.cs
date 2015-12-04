@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -20,6 +21,12 @@ namespace EFDataTransfer
 
   public class AddressParser {
     private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
+    private ErrorLogger _logger;
+
+    public AddressParser(ErrorLogger logger)
+    {
+      _logger = logger;
+    }
 
     public Address ParseAddress(object address, object postalNumber, object city)
     {
@@ -59,13 +66,19 @@ namespace EFDataTransfer
       return string.IsNullOrEmpty(input) ? 0 : Convert.ToInt32(Regex.Replace("0" + input, @"[\D]+.*$", ""));
     }
 
-    private static string ExtractPostalNumber(string postalNumber)
+    private string ExtractPostalNumber(string postalNumber)
     {
       postalNumber = postalNumber.Trim();
       var numeric = ExtractBeginingOfStringAsInteger(postalNumber);
       if (numeric > 9999 && numeric < 99999) return numeric.ToString();
 
-      return !isValidEnglishOrFrenchPostalNumber(postalNumber) ? null : postalNumber;
+      if (!isValidEnglishOrFrenchPostalNumber(postalNumber))
+      {
+        _logger.Add("Postalnumber "+postalNumber+" is neither swedish nor international format");
+        return null;
+      }
+
+      return postalNumber;
     }
 
     private static bool isValidEnglishOrFrenchPostalNumber(string val)

@@ -71,7 +71,7 @@ namespace EFDataTransfer
                 if (recordNumber % 1000 == 0)
                     Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-              var parser = new AddressParser();
+              var parser = new AddressParser(new ErrorLogger());
               var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
 
                  var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));

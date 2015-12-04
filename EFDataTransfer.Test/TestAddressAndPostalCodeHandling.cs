@@ -8,13 +8,15 @@ namespace EFDataTransfer.Test
   public class TestAddressAndPostalCodeHandling
   {
     private AddressParser _parser = null;
+    private ErrorLogger _logger;
 
     private delegate void Expression();
 
     [TestInitialize]
     public void SetUp()
     {
-      _parser = new AddressParser();
+      _logger = new ErrorLogger();
+      _parser = new AddressParser(_logger);
     }
 
     [TestMethod]
@@ -52,6 +54,8 @@ namespace EFDataTransfer.Test
       Assert.AreEqual("CH-1073", extractPostalNumber("CH-1073"));
       Assert.AreEqual("BE-1380", extractPostalNumber("BE-1380"));
       Assert.AreEqual("GB-KT112EX", extractPostalNumber("GB-KT112EX"));
+
+      Assert.AreEqual(4, _logger.GetErrorLog().Count);
     }
 
     [TestMethod]
