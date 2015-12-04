@@ -71,7 +71,8 @@ namespace EFDataTransfer
                 if (recordNumber % 1000 == 0)
                     Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-                var parsedAddress = Address.extractAddressParts(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
+              var parser = new AddressParser();
+              var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
 
                  var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));
 
@@ -167,7 +168,7 @@ namespace EFDataTransfer
 
       private static int ExtractBeginingAsIntegerValue(object data)
       {
-        return Address.ExtractBeginingOfStringAsInteger(Convert.ToString(data));
+        return AddressParser.ExtractBeginingOfStringAsInteger(Convert.ToString(data));
       }
 
       /* Main routine for doing the actual transfer */

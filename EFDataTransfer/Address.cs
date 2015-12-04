@@ -6,14 +6,22 @@ namespace EFDataTransfer
 {
   public struct Address
   {
-    private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
     public string StreetName;
     public int StreetNumber;
     public string StreetNumberFull;
     public string PostalNumber;
     public string City;
 
-    public static Address extractAddressParts(object address, object postalNumber, object city)
+    public bool isEvenStreetNumber()
+    {
+      return (StreetNumber % 2) == 0;
+    }
+  }
+
+  public class AddressParser {
+    private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
+
+    public Address ParseAddress(object address, object postalNumber, object city)
     {
       if (address == null)
         throw new NullReferenceException();
@@ -49,11 +57,6 @@ namespace EFDataTransfer
     public static int ExtractBeginingOfStringAsInteger(string input)
     {
       return string.IsNullOrEmpty(input) ? 0 : Convert.ToInt32(Regex.Replace("0" + input, @"[\D]+.*$", ""));
-    }
-
-    public bool isEvenStreetNumber()
-    {
-      return (StreetNumber%2) == 0;
     }
 
     private static string ExtractPostalNumber(string postalNumber)

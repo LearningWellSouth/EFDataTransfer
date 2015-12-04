@@ -7,8 +7,16 @@ namespace EFDataTransfer.Test
   [TestClass]
   public class TestAddressAndPostalCodeHandling
   {
+    private AddressParser _parser = null;
+
     private delegate void Expression();
-    
+
+    [TestInitialize]
+    public void SetUp()
+    {
+      _parser = new AddressParser();
+    }
+
     [TestMethod]
     public void ExtractingAddressAndStreetNumber()
     {
@@ -24,11 +32,11 @@ namespace EFDataTransfer.Test
     [TestMethod]
     public void ExtractingFirstInteger()
     {
-      Assert.AreEqual(0, Address.ExtractBeginingOfStringAsInteger(null));
-      Assert.AreEqual(0, Address.ExtractBeginingOfStringAsInteger(""));
-      Assert.AreEqual(1, Address.ExtractBeginingOfStringAsInteger("1"));
-      Assert.AreEqual(123, Address.ExtractBeginingOfStringAsInteger("123"));
-      Assert.AreEqual(123, Address.ExtractBeginingOfStringAsInteger("123-1"));
+      Assert.AreEqual(0, AddressParser.ExtractBeginingOfStringAsInteger(null));
+      Assert.AreEqual(0, AddressParser.ExtractBeginingOfStringAsInteger(""));
+      Assert.AreEqual(1, AddressParser.ExtractBeginingOfStringAsInteger("1"));
+      Assert.AreEqual(123, AddressParser.ExtractBeginingOfStringAsInteger("123"));
+      Assert.AreEqual(123, AddressParser.ExtractBeginingOfStringAsInteger("123-1"));
     }
 
     [TestMethod]
@@ -57,12 +65,12 @@ namespace EFDataTransfer.Test
 
     private string extractCity(string city)
     {
-      return Address.extractAddressParts("", null, city).City;
+      return _parser.ParseAddress("", null, city).City;
     }
 
-    private static string extractPostalNumber(string postalNumber)
+    private string extractPostalNumber(string postalNumber)
     {
-      return Address.extractAddressParts("",postalNumber,null).PostalNumber;
+      return _parser.ParseAddress("",postalNumber,null).PostalNumber;
     }
 
     [TestMethod]
@@ -81,7 +89,7 @@ namespace EFDataTransfer.Test
 
     private Address extractAddress(string addr)
     {
-      return Address.extractAddressParts(addr,null,null);
+      return _parser.ParseAddress(addr,null,null);
     }
 
     private void AssertAddressPartsAre(string address, string expectName, int expectNumber)
