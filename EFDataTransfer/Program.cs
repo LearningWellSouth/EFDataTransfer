@@ -48,32 +48,18 @@ namespace EFDataTransfer
 
     public class Program
     {
-        // Dropbox/CV/EF Arbetskatalog/Migrering/App
         static void Main(string[] args)
         {
-            var transferrer = new Transfer();
-
-            //try
-            //{
-
-                ////Console.WriteLine("Waiting for manual transfer of postal code file to database. When ready, copy, modify and run this script: ");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels ON");
-                ////Console.WriteLine("INSERT INTO PostalCodeModels (Id, PostalCode, PostalCodeType, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, StateCode,");
-                ////Console.WriteLine("[State], MunicipalityCode, Municipality, ParishCode, Parish, City2, GateLowest,GateHighest,IsNotValid, PostalAddress)");
-                ////Console.WriteLine("SELECT DISTINCT [Column 17], [Column 6], [Column 0], [Column 2], [Column 4], [Column 7], [Column 8], [Column 9], ");
-                ////Console.WriteLine("[Column 10], [Column 11], [Column 12], [Column 13], [Column 14], [Column 15], [Column 3], [Column 5], 0, [Column 1]");
-                ////Console.WriteLine("FROM [2013-09-18 Gatuadresser-postnummer]");
-                ////Console.WriteLine("SET IDENTITY_INSERT PostalCodeModels OFF");
-                ////Console.WriteLine("Press any key to continue.");
-
-
-                ////Console.ReadKey();
-
-                List<tableProperty> allTables = new List<tableProperty>();
+          var ErrorLogger = new ErrorLogger();
+            try
+            {
+              var transferrer = new Transfer(ErrorLogger);
+              List<tableProperty> allTables = new List<tableProperty>();
 
             // Issues måste raderas innan workOrders, pga FK
 
             //tables with no transfer or subtables for transfers
+              // TODO : is this the complete list of tables?
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers", truncFlag = true, transferData = false });
@@ -133,19 +119,18 @@ namespace EFDataTransfer
             foreach (tableProperty curTable in allTables)
             {
                 if (curTable.tableName == "CleaningObjects" && allTables.FirstOrDefault(x => x.tableName == "PostalAddressModels") == null)
-                    continue;
+                        continue;
 
                 //Töm tabellen först
-                if (curTable.truncFlag == true)
+                    if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                 {
                     Console.WriteLine("truncating {0}...", curTable.tableName);
                     transferrer.TruncateTable(curTable.tableName);
-
                 }
                 else
                 {
                     Console.WriteLine("Deleting all records in {0}...", curTable.tableName);
-                    transferrer.DeleteTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
+                        transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                 }
                 //Kör transfer
 
@@ -155,64 +140,56 @@ namespace EFDataTransfer
                     transferrer.TransferData(curTable.tableName);
                 }
             }
-
-
+                
             //// Om alla putsobjekt inte får arbetslag kopplade: 
             transferrer.FixCleaningObjectsWithUnconnectedTeams();
             transferrer.FixMoreCleaningObjectsWithUnconnectedTeams();
-
             //////////////////////////////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////////////////////////////////
             /////////////////// OBS!!!!!!! Vi vet inte om detta ska köras eller ej!!!! ///////////////////
             /////////////// transferrer.MergePostalCodeSchedules();
             //////////////////////////////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////////////////////////////////
-
+ 
             ////// Denna ligger utanför resten för att:
             ////// A: Det verkar som att den inte körts när SchedulesAndPeriods() körts, eller behöver data som tillkommer senare i flödet, samt
             ////// 2: Vi vill kunna köra den utan att också behöva kommentera in Schedules i denna fil, kommentera ut SchedulesAndPeriods() i andra filen, och till sist kommentera ut delete/trunc-partierna i denna fil
             transferrer.AddSchedulesToCleaningObjectsWithout();
 
-            //////// Om hemadresser inte kommit över, kör detta:
-            ////////--insert into " + dbCurrentDB + ".dbo.PersonPostalAddressModels (PostalAddressModelId, PersonId, [Type])
-            ////////--select distinct PostalAddressModelId, PersonId, 4
-            ////////--from eriks_migration.dbo.TW_clientaddresses twcad
-            ////////--JOIN " + dbCurrentDB + ".dbo.PostalCodeModels pcm ON twcad.postalcode_fixed = pcm.PostalCode
-            ////////--JOIN " + dbCurrentDB + ".dbo.PostalAddressModels pam ON pcm.Id = pam.PostalCodeModelId
-            ////////--JOIN " + dbCurrentDB + ".dbo.PersonPostalAddressModels ppam ON ppam.PostalAddressModelId = pam.Id
-            ////////--join " + dbCurrentDB + ".dbo.Persons p on p.Id = ppam.PersonId
-            ////////--WHERE deleted = 'N' and is_invoice = 'Y'
-
-
-            ////// Om kontakter för objekt utan kontakter inte kommer över, kör följande manuellt:
-            //////    INSERT INTO " + dbCurrentDB + ".dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
-            //////    SELECT 1.0, 0, 1, p.Id, co.Id
-            //////    FROM Persons p
-            //////    JOIN Customers cust ON cust.PersonId = p.Id
-            //////    JOIN CleaningObjects co ON co.CustomerId = cust.Id
-            //////    WHERE co.Id NOT IN (
-            //////        SELECT CleaningObjectId FROM Contacts
-            //////    )
-
-
-            ///* Har inte tagit med användare i min förändrade lösning
-            // * Tänker att de ska vara oförändrade som de är idag eller läggas upp manuellt
-            // * i det nya systemet
-            // * 
-            // */
-
-            ////Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
-            ////Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
-            ////Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
-            ////Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
-
-
-
+                ////// Om hemadresser inte kommit över, kör detta:
+                //////--insert into " + dbCurrentDB + ".dbo.PersonPostalAddressModels (PostalAddressModelId, PersonId, [Type])
+                //////--select distinct PostalAddressModelId, PersonId, 4
+                //////--from eriks_migration.dbo.TW_clientaddresses twcad
+                //////--JOIN " + dbCurrentDB + ".dbo.PostalCodeModels pcm ON twcad.postalcode_fixed = pcm.PostalCode
+                //////--JOIN " + dbCurrentDB + ".dbo.PostalAddressModels pam ON pcm.Id = pam.PostalCodeModelId
+                //////--JOIN " + dbCurrentDB + ".dbo.PersonPostalAddressModels ppam ON ppam.PostalAddressModelId = pam.Id
+                //////--join " + dbCurrentDB + ".dbo.Persons p on p.Id = ppam.PersonId
+                //////--WHERE deleted = 'N' and is_invoice = 'Y'
+ 
+                //// Om kontakter för objekt utan kontakter inte kommer över, kör följande manuellt:
+                ////    INSERT INTO " + dbCurrentDB + ".dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
+                ////    SELECT 1.0, 0, 1, p.Id, co.Id
+                ////    FROM Persons p
+                ////    JOIN Customers cust ON cust.PersonId = p.Id
+                ////    JOIN CleaningObjects co ON co.CustomerId = cust.Id
+                ////    WHERE co.Id NOT IN (
+                ////        SELECT CleaningObjectId FROM Contacts
+                ////    )
+ 
+                /* Har inte tagit med användare i min förändrade lösning
+                 * Tänker att de ska vara oförändrade som de är idag eller läggas upp manuellt
+                 * i det nya systemet
+                 */
+                /* 
+                //Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
+                //Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
+                //Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
+                //Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
+                
 
             transferrer.FixRUT();
 
             transferrer.AddContactsWhereMissing();
-
             transferrer.SetPostalCodeScheduleIds();
 
             transferrer.UtilityTables();
@@ -225,15 +202,15 @@ namespace EFDataTransfer
 
             /////// Nytt 2015-11-13
             transferrer.SetAdminFees();
-
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine(ex.Message);
-            //}
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message+@"\n\r"+ex.StackTrace);
+            }
 
             Console.WriteLine("Done. Press any key to quit.");
             Console.ReadKey();
+            ErrorLogger.WriteToFile("migration error log.txt");
         }
     }
 }

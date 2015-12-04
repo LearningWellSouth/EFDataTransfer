@@ -197,7 +197,7 @@ namespace EFDataTransfer
             string postalCode, string postalCodeType, string address, string streetNoLowest, string streetNoHighest, string city, string typeOfPlacement)
         {
             return string.Format(@"INSERT INTO " + dbCurrentDB + @".dbo.PostalCodeModels (PostalCode, PostalCodeType, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, IsNotValid)
-                OUTPUT INSERTED.Id VALUES ({0}, '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
+                OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
                 postalCode, postalCodeType, address, streetNoLowest, streetNoHighest, city, typeOfPlacement);
         }
 
@@ -758,63 +758,11 @@ namespace EFDataTransfer
         }
 
 
-        public static string SelectTWAddresses
-        {
-            get
-            {
-                return "SELECT id, [address], co_address, postalcode_fixed, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
+        public const string SelectTWAddresses
+                = "SELECT id, [address], co_address, postalcode_fixed, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
                     "FROM eriks_migration.dbo.TW_clientaddresses WHERE deleted = 'N'";
-            }
-        }
 
-        public static string SelectTWCleaningObjectInfoBefore
-        {
-            get
-            {
-//                return @"
-//                SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId FROM eriks_migration.dbo.TW_notes n 
-//                JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-//                WHERE table_name = 'workorders' AND notetype_id = 1 AND n.deleted = 'N' AND important = 'Y' AND 
-//                n.header LIKE 'statusINFO' OR 
-//                n.header LIKE '%KONTAKT%'
-//                ORDER BY table_id
-//                ";
-                return @"
-                    SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND n.important = 'Y' AND n.deleted = 'N' AND content <> '' AND notetype_id = 1 AND n.header LIKE '' 
-                        OR n.header LIKE 'uppdragsbeskrivning%'
-                    ORDER BY wo.delivery_clientaddress_id
-                ";
-            }
-        }
-
-        public static string SelectTWCleaningObjectInfoDuring
-        {
-            get
-            {
-                return @"
-                    SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND n.header LIKE '' AND n.important = 'N' AND n.deleted = 'N' AND content <> '' AND notetype_id = 1
-                    ORDER BY wo.delivery_clientaddress_id
-                ";
-            }
-        }
-        
-        public static string SelectTWClientAddresses
-        {
-            get
-            {
-                return "SELECT id, postalcode FROM eriks_migration.dbo.TW_clientaddresses WHERE postalcode_fixed IS NULL";
-            }
-        }
-
-        public static string SelectTWServices
+      public static string SelectTWServices
         {
             get
             {
@@ -1392,7 +1340,6 @@ namespace EFDataTransfer
         }
 
         #endregion
-
         public static string SelectPostalCodesWithMultipleSchedules
         {
             get
@@ -1420,7 +1367,6 @@ namespace EFDataTransfer
         {
             return "UPDATE " + dbCurrentDB + ".dbo.PostalCodeModels SET ScheduleId = " + scheduleId + " WHERE PostalCode = '" + postalCode + "'";
         }
-
         public static string AddContactsToCustomersWithout
         {
             get
@@ -1436,7 +1382,6 @@ namespace EFDataTransfer
                 ", dbCurrentDB);
             }
         }
-
         public static string AddContactsToCleaningObjectsWithout
         {
             get

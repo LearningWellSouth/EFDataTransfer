@@ -13,10 +13,15 @@ namespace EFDataTransfer
     {
         private SqlConnection _connection;
 
-        public DataAccess(string connectionString)
-        {
-            _connection = new SqlConnection(connectionString);
-        }
+      public DataAccess(string connectionString)
+      {
+        _connection = new SqlConnection(connectionString);
+      }
+
+      public void ValidateConnectionSettings() {
+        _connection.Open();
+        _connection.Close();
+      }
 
         public void InsertMany(string tableName, DataTable table, bool identityInsert, SqlBulkCopyColumnMapping[] mappings)
         {
