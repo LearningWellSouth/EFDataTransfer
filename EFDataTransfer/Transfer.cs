@@ -145,6 +145,7 @@ namespace EFDataTransfer
         catch (Exception exc)
         {
           _errorLogger.Add("Exception while inserting "+recurseExceptionMessages(exc)+exc.StackTrace);
+          throw;
         }
       }
 
@@ -673,7 +674,7 @@ namespace EFDataTransfer
             int periodNo = 0;
             int subscriptionId = 0;
 
-            int serviceGroupId = Convert.ToInt32(_dataAccess.SelectIntoTable(string.Format("SELECT Max(Id) AS Id FROM {0}.dbo.ServiceGroups", dbCurrentDB)).Rows[0]["Id"]);
+            int serviceGroupId = Convert.ToInt32(_dataAccess.SelectIntoTable(string.Format("SELECT Max(Id) AS Id FROM {0}.dbo.ServiceGroups", _dbCurrentDb)).Rows[0]["Id"]);
 
             foreach (DataRow row in periods.Rows)
             {
@@ -699,7 +700,7 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
             };
 
-            _dataAccess.InsertMany(dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
 
             mappings = new SqlBulkCopyColumnMapping[]
             {
@@ -709,7 +710,7 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("ServiceGroupId", "ServiceGroupId")
             };
 
-            _dataAccess.InsertMany(dbCurrentDB + ".dbo.CleaningObjectPrices", cleaningObjectPrices, false, mappings);
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.CleaningObjectPrices", cleaningObjectPrices, false, mappings);
         }
 
         // Nytt 2015-11-13
@@ -750,7 +751,7 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
             };
 
-            _dataAccess.InsertMany(dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
 
             _dataAccess.NonQuery(SqlStrings.InsertAdminFeePriceMods);
         }
@@ -980,8 +981,8 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.UpdateRUTByMainTWContacts);
             _dataAccess.NonQuery(SqlStrings.UpdateRUTOnContacts);
             
-            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", dbCurrentDB));
-            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", _dbCurrentDb));
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
         }
     }
 }

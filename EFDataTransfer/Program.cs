@@ -180,7 +180,6 @@ namespace EFDataTransfer
                  * Tänker att de ska vara oförändrade som de är idag eller läggas upp manuellt
                  * i det nya systemet
                  */
-                /* 
                 //Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
                 //Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
                 //Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
