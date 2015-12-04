@@ -13,9 +13,12 @@ namespace EFDataTransfer
     {
         private readonly DataAccess _dataAccess;
         private readonly string _dbCurrentDb;
+      private readonly ErrorLogger _errorLogger;
 
-        public Transfer()
+      public Transfer(ErrorLogger errorLogger)
         {
+        _errorLogger = errorLogger;
+
 #if DEBUG
           _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=debug_migration_db");
           _dbCurrentDb = "debug_migration_db";
@@ -64,6 +67,7 @@ namespace EFDataTransfer
             };
 
             var recordNumber = 0;
+          var parser = new AddressParser(_errorLogger);
             foreach (DataRow clientRecord in twAddresses.Rows)
             {
 
@@ -71,7 +75,6 @@ namespace EFDataTransfer
                 if (recordNumber % 1000 == 0)
                     Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-              var parser = new AddressParser(new ErrorLogger());
               var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
 
                  var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));
@@ -124,8 +127,8 @@ namespace EFDataTransfer
                     }
                 }
 
-                if (isDelivery) // TODO : shouldn't there be another case when an address is also added to cleaning objects?
-                    cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false); // TODO : the second "true" kind of contradicts the "isDelivery" in the above conditional since the true in the row data means "is invoice address". So the semantiks become "delivery address == invoice address" that is not a good assumption
+                if (isDelivery)
+                    cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false);
             }
 
             _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
@@ -140,8 +143,14 @@ namespace EFDataTransfer
         }
         catch (Exception exc)
         {
-          throw;
+          _errorLogger.Add("Exception while inserting "+recurseExceptionMessages(exc)+exc.StackTrace);
         }
+      }
+
+      private string recurseExceptionMessages(Exception exc)
+      {
+        if (exc == null) return "";
+        return exc.Message + recurseExceptionMessages(exc.InnerException);
       }
 
       private static float extractFloatOrDefault(DataRow row, string columnName, float def = 0.0F)

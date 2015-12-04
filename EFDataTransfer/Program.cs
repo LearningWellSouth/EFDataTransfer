@@ -47,9 +47,10 @@ namespace EFDataTransfer
     {
         static void Main(string[] args)
         {
+          var ErrorLogger = new ErrorLogger();
             try
             {
-              var transferrer = new Transfer();
+              var transferrer = new Transfer(ErrorLogger);
               List<tableProperty> allTables = new List<tableProperty>();
 
                 //tables with no transfer or subtables for transfers
@@ -132,7 +133,7 @@ namespace EFDataTransfer
                         transferrer.TransferData(curTable.tableName);
                     }
                 }
-         }
+            }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message+@"\n\r"+ex.StackTrace);
@@ -140,6 +141,7 @@ namespace EFDataTransfer
 
             Console.WriteLine("Done. Press any key to quit.");
             Console.ReadKey();
+            ErrorLogger.WriteToFile("migration error log.txt");
         }
     }
 }
