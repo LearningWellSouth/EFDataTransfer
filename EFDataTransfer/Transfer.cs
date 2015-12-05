@@ -11,7 +11,8 @@ namespace EFDataTransfer
 {
     public class Transfer
     {
-        private readonly DataAccess _dataAccess;
+      public const string POSTALCODEMODEL_CODETYPE = "PostalCodeType";
+      private readonly DataAccess _dataAccess;
         private readonly string _dbCurrentDb;
       private readonly ErrorLogger _errorLogger;
 
@@ -83,7 +84,8 @@ namespace EFDataTransfer
                   int postalCodeModelId = 0;
                   if (possiblePostalCodeModels.Any())
                   {
-                    var postalCode = possiblePostalCodeModels.FirstOrDefault(x => isStreetNumberWithinMaxAndMin(x, parsedAddress.StreetNumber) );
+                    var postalCode = possiblePostalCodeModels.FirstOrDefault(
+                      x => isStreetNumberWithinMaxAndMin(x, parsedAddress.StreetNumber) && hasCorrectPostalNumberType(x,parsedAddress));
 
                       if (postalCode != null)
                           postalCodeModelId = Convert.ToInt32(postalCode["Id"]);
@@ -135,6 +137,16 @@ namespace EFDataTransfer
             _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
             _dataAccess.InsertMany(string.Format("{0}.dbo.PersonPostalAddressModels", _dbCurrentDb), personPostalAddressModel, false, pMappings);
         }
+
+      public static bool hasCorrectPostalNumberType(DataRow dataRow, Address parsedAddress)
+      {
+        const string EVEN = "NJ";
+        const string ODD = "NU";
+
+        var type = Convert.ToString(dataRow[POSTALCODEMODEL_CODETYPE]);
+        if (!(type == EVEN || type == ODD)) return true;
+        return (parsedAddress.isEvenStreetNumber() ^ type == ODD);
+      }
 
       private int InsertWithKeyReturn(string statement)
       {
@@ -194,8 +206,6 @@ namespace EFDataTransfer
                     Settings();
                     break;
                 case "POSTALADDRESSMODELS":
-                    Console.WriteLine("End of correcting postalcodes.");
-                    Console.WriteLine("Transferring addresses...");
                     Addresses();
                     break;
                 case "CONTACTS":
@@ -368,6 +378,7 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.SetPostalCodeScheduleIds);
         }
 
+      // TODO : Schedules, this means there is an ambiguation in the schedules data. Also there are notes about "should this be done or not"
         // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
         public void MergePostalCodeSchedules()
         {

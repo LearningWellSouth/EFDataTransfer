@@ -54,11 +54,8 @@ namespace EFDataTransfer
             try
             {
               var transferrer = new Transfer(ErrorLogger);
-              List<tableProperty> allTables = new List<tableProperty>();
+              var allTables = new List<tableProperty>();
 
-            // Issues måste raderas innan workOrders, pga FK
-
-            //tables with no transfer or subtables for transfers
               // TODO : is this the complete list of tables?
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
@@ -144,13 +141,8 @@ namespace EFDataTransfer
             //// Om alla putsobjekt inte får arbetslag kopplade: 
             transferrer.FixCleaningObjectsWithUnconnectedTeams();
             transferrer.FixMoreCleaningObjectsWithUnconnectedTeams();
-            //////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////
-            /////////////////// OBS!!!!!!! Vi vet inte om detta ska köras eller ej!!!! ///////////////////
-            /////////////// transferrer.MergePostalCodeSchedules();
-            //////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////
  
+            // TODO : Schedules to cleaning object, so literally the note below says "have lost track of the sequence in which data is added". More the reason to create separate script files to move sql code out of the application
             ////// Denna ligger utanför resten för att:
             ////// A: Det verkar som att den inte körts när SchedulesAndPeriods() körts, eller behöver data som tillkommer senare i flödet, samt
             ////// 2: Vi vill kunna köra den utan att också behöva kommentera in Schedules i denna fil, kommentera ut SchedulesAndPeriods() i andra filen, och till sist kommentera ut delete/trunc-partierna i denna fil

@@ -79,16 +79,61 @@ namespace EFDataTransfer.Test
 
     [TestMethod]
     public void TestCheckingOfStreetNumberSpan() {
+      var row = createDataRowForPostalCodeModel();
+
+      Assert.IsTrue(Transfer.isStreetNumberWithinMaxAndMin(row, 0));
+      Assert.IsTrue(Transfer.isStreetNumberWithinMaxAndMin(row, 2));
+      Assert.IsTrue(Transfer.isStreetNumberWithinMaxAndMin(row, 3));
+      Assert.IsFalse(Transfer.isStreetNumberWithinMaxAndMin(row, 4));
+    }
+
+    [TestMethod]
+    public void TestHasCorrectPostalNumberType()
+    {
+      var row = createDataRowForPostalCodeModel();
+      var oddAddress = makeAddressWithOddStreetNumber();
+      var evenAddress = makeAddressWithEvenStreetNumber();
+
+      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NJ";
+      Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, evenAddress));
+      Assert.IsFalse(Transfer.hasCorrectPostalNumberType(row, oddAddress));
+
+      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NU";
+      Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, oddAddress));
+      Assert.IsFalse(Transfer.hasCorrectPostalNumberType(row, evenAddress));
+
+      row[Transfer.POSTALCODEMODEL_CODETYPE] = "foo";
+      Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, oddAddress));
+      Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, evenAddress));
+    }
+
+    private Address makeAddressWithEvenStreetNumber()
+    {
+      return _parser.ParseAddress("House 2", "", "");
+    }
+
+    private Address makeAddressWithOddStreetNumber()
+    {
+      return _parser.ParseAddress("House 3","","");
+    }
+
+    private static DataRow createDataRowForPostalCodeModel()
+    {
+      var table = createPostalCodeModel_TableModel();
+      var row = table.NewRow();
+      row["StreetNoLowest"] = "1";
+      row["StreetNoHighest"] = "3";
+      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NU";
+      return row;
+    }
+
+    private static DataTable createPostalCodeModel_TableModel()
+    {
       var table = new DataTable();
       table.Columns.Add(new DataColumn("StreetNoLowest", typeof (string)));
       table.Columns.Add(new DataColumn("StreetNoHighest", typeof (string)));
-      var row = table.NewRow();
-      row["StreetNoLowest"] = "1";
-      row["StreetNoHighest"] = "2";
-
-      Assert.IsTrue(Transfer.isStreetNumberWithinMaxAndMin(row, 0));
-      Assert.IsTrue(Transfer.isStreetNumberWithinMaxAndMin(row, 1));
-      Assert.IsFalse(Transfer.isStreetNumberWithinMaxAndMin(row, 3));
+      table.Columns.Add(new DataColumn(Transfer.POSTALCODEMODEL_CODETYPE, typeof (string)));
+      return table;
     }
 
     private Address extractAddress(string addr)
