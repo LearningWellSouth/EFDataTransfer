@@ -337,22 +337,7 @@ namespace EFDataTransfer
             }
         }
 
-        public static string TransferNewEmployees
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
-                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
-                    FROM eriks_migration.dbo.TW_employees e
-                    WHERE deleted = 'N'
-                    AND e.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Users)
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
-            }
-        }
-
-        public static string TransferServices
+      public static string TransferServices
         {
             get
             {

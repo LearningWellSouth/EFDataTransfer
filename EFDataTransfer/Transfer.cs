@@ -400,7 +400,10 @@ namespace EFDataTransfer
           var batch = "";
           while (!stringReader.EndOfStream)
           {
-            var line = stringReader.ReadLine().Replace("DATABASE_NAME", _dbCurrentDb);
+            var line = stringReader.ReadLine()
+              .Replace("DATABASE_NAME", _dbCurrentDb)
+              .Replace("@TARGET_DATABASE", _dbCurrentDb)
+              .Replace("@SOURCE_DATABASE", "eriks_migration");
 
             if (line == "GO")
             {
@@ -431,12 +434,7 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.TransferEmployees);
         }
 
-        public void TransferNewEmployees()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferNewEmployees);
-        }
-  
-        private void SchedulesAndPeriods()
+      private void SchedulesAndPeriods()
         {
             var interludes = _dataAccess.SelectIntoTable(SqlStrings.SelectTWInterludes);
 
