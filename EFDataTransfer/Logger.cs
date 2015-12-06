@@ -7,6 +7,7 @@ namespace EFDataTransfer
   public class Logger
   {
     private readonly List<string> _messages = new List<string>();
+    private string _currentNote = "";
 
     public void PostError(string message)
     {
@@ -15,6 +16,7 @@ namespace EFDataTransfer
 
     private void LogAndPrintMessage(string message)
     {
+      StoreCurrentValueOfRotatingNoteAndReset();
       _messages.Add(message);
       Console.WriteLine(message);
     }
@@ -29,9 +31,21 @@ namespace EFDataTransfer
       return _messages;
     }
 
-    public void PostNote(string s)
+    public void PostInfo(string s)
     {
-      LogAndPrintMessage(MakeMessagePrefix("-NOTE") + s);
+      StoreCurrentValueOfRotatingNoteAndReset();
+      LogAndPrintMessage(MakeMessagePrefix("-INFO") + s);
+    }
+
+    private void StoreCurrentValueOfRotatingNoteAndReset()
+    {
+      if (_currentNote != "") _messages.Add(MakeMessagePrefix("note:" + _currentNote));
+      _currentNote = "";
+    }
+
+    public void PostRotatingNote(string s)
+    {
+      _currentNote = s;
     }
 
     private static string MakeMessagePrefix(string type)

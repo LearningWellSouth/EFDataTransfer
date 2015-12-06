@@ -256,24 +256,7 @@ namespace EFDataTransfer
             }
         }
 
-        public static string TransferClients
-        {
-            get
-            {
-                return @"SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Persons ON
-                    INSERT INTO  " + dbCurrentDB + @".dbo.Persons (Id, PersonalNo, FirstName, LastName, WorkPhone, PrivatePhone, Email, MobilePhone, PersonType, CompanyName, NoPersonalNoValidation)
-                    SELECT DISTINCT id, persnbr, 
-					    CASE WHEN clienttype_id = 1 THEN firstname ELSE Null END,
-						CASE WHEN clienttype_id = 1 THEN lastname ELSE Null END, 
-						workphone, phone, email, mobile, clienttype_id,
-                        CASE WHEN clienttype_id = 2 THEN companyname ELSE Null END,
-                        CASE WHEN persnbr = '' THEN 1 ELSE 0 END
-                    FROM eriks_migration.dbo.TW_clients WHERE deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Persons OFF";
-            }
-        }
-
-        public static string TransferContacts
+      public static string TransferContacts
         {
             get
             {

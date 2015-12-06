@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EFDataTransfer
 {
     public class DataAccess
     {
-        private SqlConnection _connection;
+        private readonly SqlConnection _connection;
 
       public DataAccess(string connectionString)
       {
@@ -19,8 +14,7 @@ namespace EFDataTransfer
       }
 
       public void ValidateConnectionSettings() {
-        _connection.Open();
-        _connection.Close();
+        getOpenConnection();
       }
 
         public void InsertMany(string tableName, DataTable table, bool identityInsert, SqlBulkCopyColumnMapping[] mappings)
@@ -39,18 +33,10 @@ namespace EFDataTransfer
 
             try
             {
-                _connection.Open();
+                getOpenConnection();
                  
-
-                //using (var bulkCopy = new SqlBulkCopy(_connection, SqlBulkCopyOptions.KeepIdentity | SqlBulkCopyOptions.TableLock | SqlBulkCopyOptions.UseInternalTransaction, null))
-                //{
-                    bulkCopy.DestinationTableName = tableName;
-                    bulkCopy.WriteToServer(table);
-                //}
-            }
-            catch (Exception ex)
-            {
-                throw ex;
+                bulkCopy.DestinationTableName = tableName;
+                bulkCopy.WriteToServer(table);
             }
             finally
             {
@@ -61,86 +47,39 @@ namespace EFDataTransfer
 
         public int InsertSingle(string command)
         {
-            try
-            {
-                getOpenConnection();
-
-                using (var cmd = new SqlCommand(command, _connection))
-                {
-                    return Convert.ToInt32(cmd.ExecuteScalar());
-                }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            finally
-            {
-                _connection.Close();
-            }
+          return ExecuteCommand(command, cmd => Convert.ToInt32(cmd.ExecuteScalar()) );
         }
 
-      private delegate T DatabaseWork<T>(SqlConnection con);
+      private delegate T DatabaseCommandBlock<T>(SqlCommand con);
 
-      private T runWithConnection<T>(DatabaseWork<T> work)
+      private T ExecuteCommand<T>(string statement, DatabaseCommandBlock<T> brick)
       {
-        var con = getOpenConnection();
-        try
+        using (var commandObject = new SqlCommand(statement, getOpenConnection()))
         {
-          return work(getOpenConnection());
-        }
-        finally
-        {
-          con.Close();
+          commandObject.CommandTimeout = 10000;
+          return brick(commandObject);
         }
       }
+
         public DataTable SelectIntoTable(string command)
         {
-            try
-            {
-              getOpenConnection();
+          getOpenConnection();
 
-                using (var adapter = new SqlDataAdapter(command, _connection))
-                {
-                    var table = new DataTable();
+          using (var adapter = new SqlDataAdapter(command, _connection))
+          {
+            var table = new DataTable();
 
-                    adapter.SelectCommand.CommandTimeout = 3000;
-                    adapter.Fill(table);
+            adapter.SelectCommand.CommandTimeout = 3000;
+            adapter.Fill(table);
 
-                    return table;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            finally
-            {
-                _connection.Close();
-            }
+            return table;
+          }
         }
 
-        public void NonQuery(string command)
-        {
-            try
-            {
-              getOpenConnection();
-
-              using (var cmd = new SqlCommand(command, _connection))
-                {
-                    cmd.CommandTimeout = 3900;
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            catch(Exception ex)
-            {
-                throw ex;
-            }
-            finally
-            {
-                //_connection.Close();
-            }
-        }
+      public void NonQuery(string command)
+      {
+        ExecuteCommand(command, cmd => cmd.ExecuteNonQuery() );
+      }
 
       private SqlConnection getOpenConnection()
       {

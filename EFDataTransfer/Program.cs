@@ -80,7 +80,6 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
               tablesToMigrate.Add(new tableProperty() { tableName = "Settings" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "Persons" });
             tablesToMigrate.Add(new tableProperty() { tableName = "PostalAddressModels" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Contacts" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Customers" });
@@ -95,19 +94,17 @@ namespace EFDataTransfer
             tablesToMigrate.Add(new tableProperty() { tableName = "Subscriptions" });
             tablesToMigrate.Add(new tableProperty() { tableName = "SubscriptionServices" });
             tablesToMigrate.Add(new tableProperty() { tableName = "CleaningObjectPrices" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Issues" });
             ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users" }); // Connected to workers
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
-            tablesToMigrate.Add(new tableProperty() { tableName = "Issues" });
-
             transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
             transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
             transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InitialMigration.sql");
 
-
             foreach (var table in tablesToMigrate)
             {
-                logger.PostNote(string.Format("Transferring {0}...",table.tableName));
+                logger.PostInfo(string.Format("Transferring {0}...",table.tableName));
                 transferHandler.TransferData(table.tableName);
             }
                 
@@ -168,14 +165,12 @@ namespace EFDataTransfer
             }
             catch (Exception ex)
             {
-              var errorMessage = ex.Message+@"\n\r"+ex.StackTrace;
-              logger.PostError(errorMessage);
-              Console.WriteLine(errorMessage);
+              logger.PostError(ex.Message+@"\n\r"+ex.StackTrace);
             }
 
             Console.WriteLine("Done. Press any key to quit.");
             Console.ReadKey();
-            logger.WriteToFile("migration error log.txt");
+            logger.WriteToFile("migration_error_log.txt");
         }
     }
 }

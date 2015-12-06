@@ -200,9 +200,6 @@ namespace EFDataTransfer
         {
             switch (tableName.ToUpper())
             {
-                case "PERSONS":
-                    _dataAccess.NonQuery(SqlStrings.TransferClients);
-                    break;
                 case "SETTINGS":
                     Settings();
                     break;
@@ -395,7 +392,7 @@ namespace EFDataTransfer
 
       public void ExecuteScriptFile(string pathToScript)
       {
-          _logger.PostNote("Started running script "+pathToScript);
+          _logger.PostInfo("Started running script "+pathToScript);
           using(var script = File.OpenRead(pathToScript))
           using(var stringReader = new StreamReader(script)){
             var batch = "";
@@ -408,6 +405,7 @@ namespace EFDataTransfer
 
               if (line == "GO")
               {
+                _logger.PostRotatingNote(string.Format("Executing batch \"{0}\"",batch));
                 _dataAccess.NonQuery(batch);
                 batch = "";              
               }
