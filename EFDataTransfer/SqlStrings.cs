@@ -48,20 +48,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string CreateUsersForNewWorkers
-        {
-            get
-            {
-                return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Users ON
-                    INSERT INTO {0}.dbo.Users (Id, Username, [Permissions])
-                    SELECT id, firstname + ' ' + lastname AS Username, 96 AS [Permissions] 
-                    FROM eriks_migration.dbo.TW_employees
-                    WHERE deleted = 'N' AND role_id = 1
-                    AND id NOT IN (SELECT Id FROM {0}.dbo.Users)
-                    SET IDENTITY_INSERT {0}.dbo.Users OFF", dbCurrentDB);
-            }
-        }
 
         public static string GetCleaningObjectsUnconnectedToTeams
         {
@@ -347,18 +333,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string TransferWorkers
-        {
-            //Med role_id = 1 skapas endast anställda som är putsare. Kontorsanställda förs inte över som "arbetare" (de har Role_id = 4)
-            get
-            {
-                return @"
-                    INSERT INTO " + dbCurrentDB + @".dbo.Workers (UserId, PersonalNo, FirstName, LastName, PrivatePhone, [Address], City, Zip, Email, StartDate, CurActive)
-                    SELECT id, persnbr, firstname, lastname, phone, [address], city, postalcode, email, CASE WHEN ctime IS NOT NULL THEN ctime ELSE GETDATE() END, 1
-                    FROM eriks_migration.dbo.TW_employees WHERE deleted = 'N' AND role_id = 1
-                ";
-            }
-        }
 
         public static string TransferCustomerNotes
         {

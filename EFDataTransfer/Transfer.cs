@@ -203,11 +203,6 @@ namespace EFDataTransfer
                 case "SCHEDULES":
                     SchedulesAndPeriods();
                     break;
-                case "WORKERS":
-                    Console.WriteLine("Creating users for workers that does not have any...");
-                    _dataAccess.NonQuery(SqlStrings.CreateUsersForNewWorkers);
-                    _dataAccess.NonQuery(SqlStrings.TransferWorkers);
-                    break;
                 case "VEHICLES":
                     _dataAccess.NonQuery(SqlStrings.TransferVehicles);
                     Console.WriteLine("Updating Vehicles with hardcoded values...");
