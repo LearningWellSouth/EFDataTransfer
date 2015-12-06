@@ -36,6 +36,8 @@ Debug/
 *.exe
 *.dll
 
+scripts.sql
+
 # =========================
 # Operating System Files
 # =========================
