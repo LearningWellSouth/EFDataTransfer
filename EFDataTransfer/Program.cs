@@ -41,8 +41,6 @@ namespace EFDataTransfer
     public class tableProperty
     {
         public string tableName { get; set; }
-        public string refTable { get; set; }
-        public string refFieldToClean { get; set; }
     }
 
     public class Program
@@ -81,26 +79,26 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
-              tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams" }); // Also connects schedules to postalcodes
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices" });
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices" });
+              tablesToMigrate.Add(new tableProperty() { tableName = "Settings" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Persons" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "PostalAddressModels" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Contacts" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Customers" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Banks" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
+            tablesToMigrate.Add(new tableProperty() { tableName = "Workers" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Vehicles" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Teams" }); // Also connects schedules to postalcodes
+            tablesToMigrate.Add(new tableProperty() { tableName = "Accounts" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "SubCategories" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Services" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Subscriptions" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "SubscriptionServices" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "CleaningObjectPrices" });
             ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users" }); // Connected to workers
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
-            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues" });
+            tablesToMigrate.Add(new tableProperty() { tableName = "Issues" });
 
             transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
             transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
