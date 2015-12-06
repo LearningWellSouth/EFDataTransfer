@@ -45,7 +45,7 @@ namespace EFDataTransfer
 
     public class Program
     {
-      private const string PATH_TO_SQL_SCRIPTS = @"..\..\..\";
+      private const string PathToSqlScripts = @"..\..\..\";
         static void Main(string[] args)
         {
           var logger = new Logger();
@@ -80,8 +80,6 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
               tablesToMigrate.Add(new tableProperty() { tableName = "Settings" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "PostalAddressModels" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "Contacts" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Customers" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Banks" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
@@ -98,10 +96,13 @@ namespace EFDataTransfer
             ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users" }); // Connected to workers
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
-            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
-            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
-            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InitialMigration.sql");
+            transferHandler.ExecuteScriptFile(PathToSqlScripts + "baseline_architecture.sql");
+            transferHandler.ExecuteScriptFile(PathToSqlScripts + "InsertPostalNumbers.sql");
+            transferHandler.ExecuteScriptFile(PathToSqlScripts + "InitialMigration.sql");
 
+            transferHandler.FindClientPostalCodeMapping_CreateAddressAndCleaningObjectEntriesForClient();
+            transferHandler.ExecuteScriptFile(PathToSqlScripts + "AfterCreatingCleaningObjects.sql");
+            // TODO : contacts and customers are separate but why does the contact have "InvoiceReference" bool field flag then?
             foreach (var table in tablesToMigrate)
             {
                 logger.PostInfo(string.Format("Transferring {0}...",table.tableName));

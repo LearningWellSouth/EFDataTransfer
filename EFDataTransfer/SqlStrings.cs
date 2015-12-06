@@ -256,24 +256,6 @@ namespace EFDataTransfer
             }
         }
 
-      public static string TransferContacts
-        {
-            get
-            {
-                return @"
-                    INSERT INTO " + dbCurrentDB + @".dbo.Contacts (PersonId, CleaningObjectId, RUT, InvoiceReference, Notify)
-                    SELECT clo.id AS PersonId, cla.id AS CleaningObjectId, 1 AS RUT, 0 AS InvoiceReference, 1 AS Notify
-                    FROM eriks_migration.dbo.TW_clients cli
-                    JOIN eriks_migration.dbo.TW_clients clo ON cli.id = clo.mother_id
-                    JOIN eriks_migration.dbo.TW_clientaddresses cla ON cla.client_id = cli.id
-                    WHERE --cla.is_delivery = 'Y' AND 
-                    cli.deleted = 'N'
-                    AND clo.deleted = 'N'
-                    AND cla.deleted = 'N'
-                    AND EXISTS (SELECT Id FROM " + dbCurrentDB + ".dbo.CleaningObjects WHERE Id = cla.id)";
-            }
-        }
-
         public static string InsertContactsWhereNeeded
         {
             get
@@ -1185,20 +1167,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string SetRUT
-        {
-            get
-            {
-                return @"
-                    UPDATE " + dbCurrentDB + @".dbo.Contacts SET RUT = CASE 
-                    WHEN twc.full_reduction_pot = 0 AND twc.persnbr IS NOT NULL AND twc.persnbr <> ''
-	                    THEN CASE WHEN twc.taxreduction_percentage = 0 THEN 1 ELSE twc.taxreduction_percentage / 100 END
-                    ELSE 0 END
-                    FROM " + dbCurrentDB + @".dbo.Contacts c
-                    JOIN eriks_migration.dbo.TW_clients twc ON twc.id = c.PersonId
-                ";
-            }
-        }
 
         public static string UpdateCleaningObjectInfoBefore(int id, string info)
         {

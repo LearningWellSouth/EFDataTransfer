@@ -26,3 +26,4 @@ INSERT INTO @TARGET_DATABASE @.dbo.Persons (
 SET IDENTITY_INSERT  @TARGET_DATABASE @.dbo.Persons OFF
 GO
 
+-- Persons linked to postal codes and Cleaning Objects created (after postal codes are linked). This is done in the application

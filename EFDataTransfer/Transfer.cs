@@ -33,7 +33,7 @@ namespace EFDataTransfer
             SqlStrings.dbToUse = _dbCurrentDb;
         }
 
-        private void Addresses()
+        public void FindClientPostalCodeMapping_CreateAddressAndCleaningObjectEntriesForClient()
         {
             var twAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWAddresses);
             var postalCodeModels = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPostalCodeModels);
@@ -71,14 +71,14 @@ namespace EFDataTransfer
 
             var recordNumber = 0;
           var parser = new AddressParser(_logger);
-            foreach (DataRow clientRecord in twAddresses.Rows)
+            foreach (DataRow addressRecord in twAddresses.Rows)
             {
 
                 recordNumber++;
                 if (recordNumber % 1000 == 0)
                     Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-              var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
+              var parsedAddress = parser.ParseAddress(addressRecord["address"], addressRecord["postalcode"], addressRecord["city"]);
 
                  var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));
 
@@ -107,21 +107,24 @@ namespace EFDataTransfer
                 }
                 else
                 {
-                  var address2 = Convert.IsDBNull(clientRecord["co_address"]) ? "" : Convert.ToString(clientRecord["co_address"]);
-                  var longitude = extractFloatOrDefault(clientRecord, "longitude");
-                  var latitude = extractFloatOrDefault(clientRecord, "latitude");
+                  var address2 = Convert.IsDBNull(addressRecord["co_address"]) ? "" : Convert.ToString(addressRecord["co_address"]);
+                  var longitude = extractFloatOrDefault(addressRecord, "longitude");
+                  var latitude = extractFloatOrDefault(addressRecord, "latitude");
 
                   postalAddressModelId = InsertWithKeyReturn(SqlStrings.InsertPostalAddressModel(parsedAddress.StreetNumberFull, postalCodeModelId, "AT", address2, longitude, latitude));
                 }
 
-                bool isDelivery = (Convert.ToString(clientRecord["is_delivery"]) == "Y") || (Convert.ToInt32(clientRecord["route_num"]) > 0 && Convert.ToInt32(clientRecord["workarea_id"]) > 0);
-                bool isInvoice = Convert.ToString(clientRecord["is_invoice"]) == "Y";
+                bool isDelivery = (Convert.ToString(addressRecord["is_delivery"]) == "Y") || (Convert.ToInt32(addressRecord["route_num"]) > 0 && Convert.ToInt32(addressRecord["workarea_id"]) > 0);
+                bool isInvoice = Convert.ToString(addressRecord["is_invoice"]) == "Y";
 
-                foreach (var person in clients.Select("id = " + clientRecord["client_id"]))
+                foreach (var person in clients.Select("id = " + addressRecord["client_id"]))
                 {
                     if (isDelivery)
+                    {
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 1);
-
+                        cleaningObjects.Rows.Add(addressRecord["id"], postalAddressModelId, true, addressRecord["route_num"], true, false);
+                    }
+                        
                     if (isInvoice)
                     {
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 2);
@@ -130,9 +133,6 @@ namespace EFDataTransfer
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 4);
                     }
                 }
-
-                if (isDelivery)
-                    cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false);
             }
 
             _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
@@ -202,14 +202,6 @@ namespace EFDataTransfer
             {
                 case "SETTINGS":
                     Settings();
-                    break;
-                case "POSTALADDRESSMODELS":
-                    Addresses();
-                    break;
-                case "CONTACTS":
-                    _dataAccess.NonQuery(SqlStrings.TransferContacts);
-                    Console.WriteLine("Updating Contacts with RUT...");
-                    SetRUT();
                     break;
                 case "CUSTOMERS":
                     _dataAccess.NonQuery(SqlStrings.TransferCustomers);
@@ -420,13 +412,6 @@ namespace EFDataTransfer
         public void CreateTeamUsers()
         {
             _dataAccess.NonQuery(SqlStrings.CreateUsersForTeams);
-        }
-
-        private void SetRUT()
-        {
-            _dataAccess.NonQuery(SqlStrings.SetRUT);
-            _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM " + _dbCurrentDb + ".dbo.Persons WHERE NoPersonalNoValidation = 1)");
-            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
         }
 
         public void Employees()
