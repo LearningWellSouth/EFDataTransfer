@@ -51,7 +51,7 @@ namespace EFDataTransfer
       private const string PATH_TO_SQL_SCRIPTS = @"..\..\..\";
         static void Main(string[] args)
         {
-          var ErrorLogger = new ErrorLogger();
+          var ErrorLogger = new Logger();
             try
             {
               var transferrer = new Transfer(ErrorLogger);
@@ -183,7 +183,7 @@ namespace EFDataTransfer
             catch (Exception ex)
             {
               var errorMessage = ex.Message+@"\n\r"+ex.StackTrace;
-              ErrorLogger.Add(errorMessage);
+              ErrorLogger.PostError(errorMessage);
               Console.WriteLine(errorMessage);
             }
 

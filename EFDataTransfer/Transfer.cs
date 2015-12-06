@@ -15,11 +15,11 @@ namespace EFDataTransfer
       public const string POSTALCODEMODEL_CODETYPE = "PostalCodeType";
       private readonly DataAccess _dataAccess;
         private readonly string _dbCurrentDb;
-      private readonly ErrorLogger _errorLogger;
+      private readonly Logger _logger;
 
-      public Transfer(ErrorLogger errorLogger)
+      public Transfer(Logger logger)
         {
-        _errorLogger = errorLogger;
+        _logger = logger;
 
 #if DEBUG
           _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=master");
@@ -70,7 +70,7 @@ namespace EFDataTransfer
             };
 
             var recordNumber = 0;
-          var parser = new AddressParser(_errorLogger);
+          var parser = new AddressParser(_logger);
             foreach (DataRow clientRecord in twAddresses.Rows)
             {
 
@@ -157,7 +157,7 @@ namespace EFDataTransfer
         }
         catch (Exception exc)
         {
-          _errorLogger.Add("Exception while inserting "+recurseExceptionMessages(exc)+exc.StackTrace);
+          _logger.PostError("Exception while inserting "+recurseExceptionMessages(exc)+exc.StackTrace);
           throw;
         }
       }
@@ -395,26 +395,28 @@ namespace EFDataTransfer
 
       public void ExecuteScriptFile(string pathToScript)
       {
-          var script = File.OpenRead(pathToScript);
-          var stringReader = new StreamReader(script);
-          var batch = "";
-          while (!stringReader.EndOfStream)
-          {
-            var line = stringReader.ReadLine()
-              .Replace("DATABASE_NAME", _dbCurrentDb)
-              .Replace("@TARGET_DATABASE", _dbCurrentDb)
-              .Replace("@SOURCE_DATABASE", "eriks_migration");
+          _logger.PostNote("Started running script "+pathToScript);
+          using(var script = File.OpenRead(pathToScript))
+          using(var stringReader = new StreamReader(script)){
+            var batch = "";
+            while (!stringReader.EndOfStream)
+            {
+              var line = stringReader.ReadLine()
+                .Replace("DATABASE_NAME", _dbCurrentDb)
+                .Replace("@TARGET_DATABASE", _dbCurrentDb)
+                .Replace("@SOURCE_DATABASE", "eriks_migration");
 
-            if (line == "GO")
-            {
-              _dataAccess.NonQuery(batch);
-              batch = "";              
+              if (line == "GO")
+              {
+                _dataAccess.NonQuery(batch);
+                batch = "";              
+              }
+              else
+              {
+                batch += " " + line;
+              }
             }
-            else
-            {
-              batch += " " + line;
-            }
-          }
+          };
       }
 
         public void CreateTeamUsers()

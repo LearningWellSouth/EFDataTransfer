@@ -21,9 +21,9 @@ namespace EFDataTransfer
 
   public class AddressParser {
     private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
-    private ErrorLogger _logger;
+    private Logger _logger;
 
-    public AddressParser(ErrorLogger logger)
+    public AddressParser(Logger logger)
     {
       _logger = logger;
     }
@@ -74,7 +74,7 @@ namespace EFDataTransfer
 
       if (!isValidEnglishOrFrenchPostalNumber(postalNumber))
       {
-        _logger.Add("Postalnumber "+postalNumber+" is neither swedish nor international format");
+        _logger.PostError("Postalnumber "+postalNumber+" is neither swedish nor international format");
         return null;
       }
 
