@@ -79,9 +79,6 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
-              tablesToMigrate.Add(new tableProperty() { tableName = "Settings" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "Customers" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "Banks" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
             tablesToMigrate.Add(new tableProperty() { tableName = "Workers" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Vehicles" });

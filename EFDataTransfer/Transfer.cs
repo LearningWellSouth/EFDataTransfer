@@ -13,7 +13,7 @@ namespace EFDataTransfer
     public class Transfer
     {
       public const string POSTALCODEMODEL_CODETYPE = "PostalCodeType";
-      private readonly DataAccess _dataAccess;
+      private readonly IDataAccess _dataAccess;
         private readonly string _dbCurrentDb;
       private readonly Logger _logger;
 
@@ -120,11 +120,8 @@ namespace EFDataTransfer
                 foreach (var person in clients.Select("id = " + addressRecord["client_id"]))
                 {
                     if (isDelivery)
-                    {
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 1);
-                        cleaningObjects.Rows.Add(addressRecord["id"], postalAddressModelId, true, addressRecord["route_num"], true, false);
-                    }
-                        
+
                     if (isInvoice)
                     {
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 2);
@@ -133,6 +130,9 @@ namespace EFDataTransfer
                         personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 4);
                     }
                 }
+
+                if (isDelivery) // TODO : modify this to bind to customers. Now the customers are created before any way so we may do this. See the script "AfterCreatingCleaningObjects"
+                    cleaningObjects.Rows.Add(addressRecord["id"], postalAddressModelId, true, addressRecord["route_num"], true, false);
             }
 
             _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
@@ -200,19 +200,6 @@ namespace EFDataTransfer
         {
             switch (tableName.ToUpper())
             {
-                case "SETTINGS":
-                    Settings();
-                    break;
-                case "CUSTOMERS":
-                    _dataAccess.NonQuery(SqlStrings.TransferCustomers);
-                    Console.WriteLine("Connecting Customers to CleaningObjects...");
-                    ConnectCustomersToCleaningObjects();
-                    break;
-                case "BANKS":
-                    _dataAccess.NonQuery(SqlStrings.TransferBanks);
-                    Console.WriteLine("Connecting Banks to customers...");
-                    _dataAccess.NonQuery(SqlStrings.ConnectBanksToCustomers);
-                    break;
                 case "SCHEDULES":
                     SchedulesAndPeriods();
                     break;
@@ -271,13 +258,6 @@ namespace EFDataTransfer
         {
             Console.WriteLine("Adding schedules to those addresses that lacks them...");
             _dataAccess.NonQuery(SqlStrings.UpdateAllPostalCodeScheduleIds);
-        }
-
-        private void ConnectCustomersToCleaningObjects()
-        {
-            
-            _dataAccess.NonQuery(SqlStrings.ConnectCustomersToCleaningObjects);
-            _dataAccess.NonQuery(SqlStrings.InsertContactsWhereNeeded);
         }
 
         public void ConnectTeamsToCleaningObjects()
@@ -454,61 +434,11 @@ namespace EFDataTransfer
                     num = thisNum;
                     scheduleId = _dataAccess.InsertSingle(SqlStrings.InsertIntoSchedules(num));
                 }
-                var test = Convert.ToDateTime(interlude["startdate"]);
                 periods.Rows.Add(new object[] { 
                     interlude["id"], scheduleId, interlude["weekFrom"], Convert.ToInt32(interlude["weekFrom"]) + 1, Convert.ToDateTime(interlude["startdate"]), interlude["period"] });
             }
 
             _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Periods", periods, true, mapping);
-        }
-
-        private void Settings()
-        {
-            var settings = new DataTable();
-            settings.Columns.AddRange(new DataColumn[] {
-                new DataColumn("Key", typeof(string)),
-                new DataColumn("Value", typeof(string))
-            });
-
-            var mapping = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("Key", "Key"),
-                new SqlBulkCopyColumnMapping("Value", "Value")
-            };
-
-            settings.Rows.Add(new object[] { "SMSURL", "https://api.beepsend.com/2/sms/" });
-            settings.Rows.Add(new object[] { "SMSToken", "4027747559efb58a31aeb06606371e4f1e8b08c47a9fa5b15fcfd1aac099f858" });
-            settings.Rows.Add(new object[] { "SMSMessage", "Fönsterputsningen för {0} {1} i {2} är färdigt.\nMed vänlig hälsning\nEriks fönsterputs" });
-            settings.Rows.Add(new object[] { "SMSDefaultCountryCode", "46" });
-            settings.Rows.Add(new object[] { "SMSDebugPhoneNumber", "+46739105500" /*+46702307254"*/ });
-            settings.Rows.Add(new object[] { "MOMS", "0.25" });
-            settings.Rows.Add(new object[] { "ReminderText", "Påminnelse\nRad1\nRad2" });
-            settings.Rows.Add(new object[] { "ReminderTaxReductionText", "Text om att skattereduktion avvisas\nRad1\nRad2\nRad3" });
-            settings.Rows.Add(new object[] { "ReminderDebtCollectionText", "Inkassotext\nRad1\nRad2" });
-            settings.Rows.Add(new object[] { "SMTPUsername", "noreply@eriksfonsterputs.se" });
-            settings.Rows.Add(new object[] { "SMTPPassword", "svarainte" });
-            settings.Rows.Add(new object[] { "SMTPHost", "smtp.gmail.com" });
-            settings.Rows.Add(new object[] { "SMTPPortTLS", "465" });
-            settings.Rows.Add(new object[] { "SMTPPortSSL", "587" });
-            settings.Rows.Add(new object[] { "ConfirmationMailSubject", "Fönsterputs" });
-            settings.Rows.Add(new object[] { "ConfirmationMailContent", "Bästa kund!<br/><br/><br/><br/>Vi har idag putsat fönster på {0}. Vill du kontakta oss gällande putsningen, vänligen ring kundtjänst på 0771-424242 och ange refnr {1}.<br /><br />Miljövän? Tänk på att du kan anmäla dig för e-faktura hos din bank! <br /><br />Med vänliga hälsningar, {2}<br />Eriks Fönsterputs" });
-            settings.Rows.Add(new object[] { "DebugMailAddress", "msp@learningwell.se" });
-            settings.Rows.Add(new object[] { "ProductionMode", "false" });
-            settings.Rows.Add(new object[] { "InvoiceMailSubject", "Faktura" });
-            settings.Rows.Add(new object[] { "InvoiceMailContent", "Bästa kund!<br/><br/><br/><br/>I medföljande bilaga finner du en faktura från Eriks Fönsterputs.<br /><br /> Vill du kontakta oss gällande frågor kring fakturan, vänligen ring kundtjänst på 0771-424242.<br /><br />Med vänliga hälsningar<br />Eriks Fönsterputs" });
-            settings.Rows.Add(new object[] { "SubscriptionMailSubject", "Bekräftelse" });
-            settings.Rows.Add(new object[] { "SubscriptionMailMessage", "Meddelande 1" });
-            settings.Rows.Add(new object[] { "SubscriptionMailMessage2", "Meddelande 2" });
-            settings.Rows.Add(new object[] { "SubscriptionMailMessage3", "Meddelande 3" });
-            settings.Rows.Add(new object[] { "SubscriptionMailMessage4", "Meddelande 4" });
-            settings.Rows.Add(new object[] { "SubscriptionMailMessage5", "Meddelande 5" });
-
-            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Settings", settings, false, mapping);
-
-            //Nollställ locktable
-
-            _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo.TableLocks SET NextInvoiceNumberTable = 0");
-
-
         }
 
         private void Subscriptions()

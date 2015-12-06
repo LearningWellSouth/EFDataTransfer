@@ -4,7 +4,7 @@ using System.Data.SqlClient;
 
 namespace EFDataTransfer
 {
-    public class DataAccess
+    public class DataAccess : IDataAccess
     {
         private readonly SqlConnection _connection;
 
@@ -87,4 +87,13 @@ namespace EFDataTransfer
         return _connection;
       }
     }
+
+  public interface IDataAccess
+  {
+    void ValidateConnectionSettings();
+    DataTable SelectIntoTable(string statement);
+    void InsertMany(string format, DataTable dataTable, bool p2, SqlBulkCopyColumnMapping[] coMappings);
+    int InsertSingle(string statement);
+    void NonQuery(string statement);
+  }
 }

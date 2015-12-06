@@ -256,38 +256,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string InsertContactsWhereNeeded
-        {
-            get
-            {
-                return @"
-                    INSERT INTO " + dbCurrentDB + @".dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
-                    SELECT 1.0, 0, 1, p.Id, co.Id
-                    FROM " + dbCurrentDB + @".dbo.Persons p
-                    JOIN " + dbCurrentDB + @".dbo.Customers cust ON cust.PersonId = p.Id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.CustomerId = cust.Id
-                    WHERE co.Id NOT IN (
-	                    SELECT CleaningObjectId FROM " + dbCurrentDB + ".dbo.Contacts)";
-            }
-        }
-
-        public static string TransferCustomers
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Customers ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Customers (Id, PersonId, IsInactive, IsInvoicable, InvoiceMethod, IsCreditBlocked, PaymentTerms)
-                    SELECT DISTINCT clientnbr AS Id, TW_clients.Id AS PersonId, 0 AS IsInactive, 1 AS IsInvoicable, 
-                        CASE WHEN TW_clients.paymenttype = 4 THEN 1 WHEN TW_clients.paymenttype = 7 THEN 2 WHEN TW_clients.paymenttype = 2 THEN 0 ELSE 3 END AS InvoiceMethod, 
-                        0 AS IsCreditBlocked, paymentterms
-                    FROM eriks_migration.dbo.TW_clients
-                    INNER JOIN eriks_migration.dbo.TW_clientaddresses cli ON TW_clients.id = cli.client_id
-                    WHERE is_invoice = 'Y' AND eriks_migration.dbo.TW_clients.deleted = 'N' AND mother_id = 0
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Customers OFF";
-            }
-        }
-
         public static string TransferEmployees
         {
             get
@@ -610,19 +578,6 @@ namespace EFDataTransfer
                     AND notes.header IN ('Uppsagddatum', 'UPPSÄGNING', 'UPPSAGD') AND notes.deleted = 'N'
                     AND notes.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Issues)
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Issues OFF";
-            }
-        }
-
-        public static string TransferBanks 
-        { 
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Banks ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Banks (Id, BankId, Name)
-                    SELECT b.id AS Id, enar AS BankId, name AS Name FROM eriks_migration.dbo.TW_banks b
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Banks OFF
-                ";
             }
         }
 
@@ -1054,41 +1009,6 @@ namespace EFDataTransfer
 	                    HAVING COUNT (table_id) = 1
                     )
                 ", dbCurrentDB);
-            }
-        }
-
-        public static string ConnectBanksToCustomers
-        {
-            get
-            {
-                return @"
-                    UPDATE " + dbCurrentDB + @".dbo.Customers SET BankId = X.BankId FROM (
-	                    SELECT clientnbr, CASE WHEN bank_id = 0 THEN NULL ELSE bank_id END AS BankId FROM eriks_migration.dbo.TW_clients
-                    ) X
-                    WHERE Id = clientnbr
-                ";
-            }
-        }
-
-        public static string ConnectCustomersToCleaningObjects
-        {
-            get
-            {
-                return
-                    @"UPDATE " + dbCurrentDB + @".dbo.CleaningObjects SET CustomerId = cust.Id
-                    FROM " + dbCurrentDB + @".dbo.CleaningObjects co 
-                    LEFT JOIN eriks_migration.dbo.TW_clientaddresses cla ON co.Id = cla.id 
-                    RIGHT JOIN " + dbCurrentDB + @".dbo.Customers cust ON cla.client_id = cust.PersonId";
-                    //"
-//                    @"UPDATE CleaningObjects SET CustomerId = cust.Id 
-//                    FROM CleaningObjects co
-//                    RIGHT JOIN PersonPostalAddressModels ppam ON co.PostalAddressModelId = ppam.PostalAddressModelId
-//                    JOIN Customers cust ON cust.PersonId = ppam.PersonId";
-//                    FROM CleaningObjects co
-//                    RIGHT JOIN PostalAddressModels pam ON co.PostalAddressModelId = ppam.PostalAddressModelId
-//                    RIGHT JOIN PersonPostalAddressModels ppam ON pam.Id = ppam.PostalAddressModelId
-//                    RIGHT JOIN Persons pers ON ppam.PersonId = pers.Id
-                //";
             }
         }
 
