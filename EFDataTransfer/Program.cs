@@ -41,7 +41,6 @@ namespace EFDataTransfer
     public class tableProperty
     {
         public string tableName { get; set; }
-        public bool transferData { get; set; }
         public string refTable { get; set; }
         public string refFieldToClean { get; set; }
     }
@@ -51,11 +50,11 @@ namespace EFDataTransfer
       private const string PATH_TO_SQL_SCRIPTS = @"..\..\..\";
         static void Main(string[] args)
         {
-          var ErrorLogger = new Logger();
+          var logger = new Logger();
             try
             {
-              var transferrer = new Transfer(ErrorLogger);
-              var allTables = new List<tableProperty>();
+              var transferHandler = new Transfer(logger);
+              var tablesToMigrate = new List<tableProperty>();
 
               // TODO : these tables have no meaning since no data is transfered from old system to new. After the change in filosophy of actually recreating the database on migration. The delete is no longer needed
               /*
@@ -82,50 +81,47 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
-              allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules",  transferData = true });  // Kontrollera mot postnummer-område.xlsx
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams",  transferData = true }); // Also connects schedules to postalcodes
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices",  transferData = true });
-            ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users",  transferData = true }); // Connected to workers
+              tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams" }); // Also connects schedules to postalcodes
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices" });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices" });
+            ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users" }); // Connected to workers
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues",  transferData = true });
+            tablesToMigrate.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues" });
 
-            transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
-            transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
-            transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InitialMigration.sql");
+            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
+            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
+            transferHandler.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InitialMigration.sql");
 
 
-            foreach (var curTable in allTables)
+            foreach (var table in tablesToMigrate)
             {
-                if (curTable.transferData)
-                {
-                    Console.WriteLine("Transferring {0}...", curTable.tableName);
-                    transferrer.TransferData(curTable.tableName);
-                }
+                logger.PostNote(string.Format("Transferring {0}...",table.tableName));
+                transferHandler.TransferData(table.tableName);
             }
                 
             //// Om alla putsobjekt inte får arbetslag kopplade: 
-            transferrer.FixCleaningObjectsWithUnconnectedTeams();
-            transferrer.FixMoreCleaningObjectsWithUnconnectedTeams();
+            transferHandler.FixCleaningObjectsWithUnconnectedTeams();
+            transferHandler.FixMoreCleaningObjectsWithUnconnectedTeams();
  
             // TODO : Schedules to cleaning object, so literally the note below says "have lost track of the sequence in which data is added". More the reason to create separate script files to move sql code out of the application
             ////// Denna ligger utanför resten för att:
             ////// A: Det verkar som att den inte körts när SchedulesAndPeriods() körts, eller behöver data som tillkommer senare i flödet, samt
             ////// 2: Vi vill kunna köra den utan att också behöva kommentera in Schedules i denna fil, kommentera ut SchedulesAndPeriods() i andra filen, och till sist kommentera ut delete/trunc-partierna i denna fil
-            transferrer.AddSchedulesToCleaningObjectsWithout();
+            transferHandler.AddSchedulesToCleaningObjectsWithout();
 
                 ////// Om hemadresser inte kommit över, kör detta:
                 //////--insert into " + dbCurrentDB + ".dbo.PersonPostalAddressModels (PostalAddressModelId, PersonId, [Type])
@@ -157,31 +153,31 @@ namespace EFDataTransfer
                 //Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
                 
 
-            transferrer.FixRUT();
+            transferHandler.FixRUT();
 
-            transferrer.AddContactsWhereMissing();
-            transferrer.SetPostalCodeScheduleIds();
+            transferHandler.AddContactsWhereMissing();
+            transferHandler.SetPostalCodeScheduleIds();
 
-            transferrer.UtilityTables();
+            transferHandler.UtilityTables();
 
             Console.WriteLine("Merging subscriptions");
 
-            transferrer.MergeSubscriptions();
+            transferHandler.MergeSubscriptions();
 
-            transferrer.SetBasePriceAndInactive();
+            transferHandler.SetBasePriceAndInactive();
 
-            transferrer.SetAdminFees();
+            transferHandler.SetAdminFees();
             }
             catch (Exception ex)
             {
               var errorMessage = ex.Message+@"\n\r"+ex.StackTrace;
-              ErrorLogger.PostError(errorMessage);
+              logger.PostError(errorMessage);
               Console.WriteLine(errorMessage);
             }
 
             Console.WriteLine("Done. Press any key to quit.");
             Console.ReadKey();
-            ErrorLogger.WriteToFile("migration error log.txt");
+            logger.WriteToFile("migration error log.txt");
         }
     }
 }
