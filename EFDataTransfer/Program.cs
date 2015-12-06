@@ -57,58 +57,50 @@ namespace EFDataTransfer
               var transferrer = new Transfer(ErrorLogger);
               var allTables = new List<tableProperty>();
 
-              // TODO : is this the complete list of tables?
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderTimeReports",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "Invoices", refFieldToClean = "WorkOrderId", tableName = "Workorders",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "InvoiceRows", refFieldToClean = "TransactionId", tableName = "Transactions",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "TransactionValues",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "IssueHistories",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleanings",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleaningServices",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Deviations",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceContacts",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceRows",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "InvoiceId", tableName = "Invoices",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CleaningObjectId", tableName = "CleaningObjects",  transferData = false });
-
-            //Tables with transfers
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings",  transferData = true });
+              // TODO : these tables have no meaning since no data is transfered from old system to new. After the change in filosophy of actually recreating the database on migration. The delete is no longer needed
+              /*
+               * allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResourceWorkers",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderTimeReports",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "Invoices", refFieldToClean = "WorkOrderId", tableName = "Workorders",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "InvoiceRows", refFieldToClean = "TransactionId", tableName = "Transactions",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "TransactionValues",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "IssueHistories",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleanings",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SingleCleaningServices",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Deviations",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceContacts",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "InvoiceRows",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "InvoiceId", tableName = "Invoices",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CleaningObjectId", tableName = "CleaningObjects",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PersonPostalAddressModels",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Periods",  transferData = false }); //Connected to Schedules
+            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderServices",  transferData = false });
+            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Prices",  transferData = false });//Connected to Subscriptions
+            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "ServiceGroups",  transferData = false });       //Connected to Subscriptions
+            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories",  transferData = false });
+            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
+               allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
+              allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Settings",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CustomerId", tableName = "Persons",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PersonPostalAddressModels",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "PostalAddressModels",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Contacts",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Customers",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Banks",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Periods",  transferData = false }); //Connected to Schedules
             allTables.Add(new tableProperty() { refTable = "PostalCodeModels", refFieldToClean = "ScheduleId", tableName = "Schedules",  transferData = true });  // Kontrollera mot postnummer-område.xlsx
-
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams",  transferData = true }); // Also connects schedules to postalcodes
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts",  transferData = true });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories",  transferData = true });
-
-
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Services",  transferData = true });
-
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "ServiceGroups",  transferData = false });       //Connected to Subscriptions
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Prices",  transferData = false });//Connected to Subscriptions
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Subscriptions",  transferData = true });
-            allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderServices",  transferData = false });
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubscriptionServices",  transferData = true });
-
-
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices",  transferData = true });
             ////////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users",  transferData = true }); // Connected to workers
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
-
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues",  transferData = true });
 
             transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
