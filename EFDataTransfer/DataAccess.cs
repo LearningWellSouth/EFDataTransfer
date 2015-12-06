@@ -63,7 +63,7 @@ namespace EFDataTransfer
         {
             try
             {
-                _connection.Open();
+                getOpenConnection();
 
                 using (var cmd = new SqlCommand(command, _connection))
                 {
@@ -80,11 +80,25 @@ namespace EFDataTransfer
             }
         }
 
+      private delegate T DatabaseWork<T>(SqlConnection con);
+
+      private T runWithConnection<T>(DatabaseWork<T> work)
+      {
+        var con = getOpenConnection();
+        try
+        {
+          return work(getOpenConnection());
+        }
+        finally
+        {
+          con.Close();
+        }
+      }
         public DataTable SelectIntoTable(string command)
         {
             try
             {
-                _connection.Open();
+              getOpenConnection();
 
                 using (var adapter = new SqlDataAdapter(command, _connection))
                 {
@@ -110,9 +124,9 @@ namespace EFDataTransfer
         {
             try
             {
-                _connection.Open();
+              getOpenConnection();
 
-                using (var cmd = new SqlCommand(command, _connection))
+              using (var cmd = new SqlCommand(command, _connection))
                 {
                     cmd.CommandTimeout = 3900;
                     cmd.ExecuteNonQuery();
@@ -124,8 +138,14 @@ namespace EFDataTransfer
             }
             finally
             {
-                _connection.Close();
+                //_connection.Close();
             }
         }
+
+      private SqlConnection getOpenConnection()
+      {
+        if (_connection.State == ConnectionState.Closed) _connection.Open();
+        return _connection;
+      }
     }
 }

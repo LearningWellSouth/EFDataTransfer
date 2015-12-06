@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -48,6 +49,7 @@ namespace EFDataTransfer
 
     public class Program
     {
+      private const string PATH_TO_SQL_SCRIPTS = @"..\..\..\";
         static void Main(string[] args)
         {
           var ErrorLogger = new ErrorLogger();
@@ -110,7 +112,8 @@ namespace EFDataTransfer
 
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
 
-
+            transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "baseline_architecture.sql");
+            transferrer.ExecuteScriptFile(PATH_TO_SQL_SCRIPTS + "InsertPostalNumbers.sql");
             transferrer.TransferNewEmployees(); // När en ny användare kommer in i systemet kraschar migreringen om den inte läggs in
 
             foreach (tableProperty curTable in allTables)
@@ -191,12 +194,13 @@ namespace EFDataTransfer
 
             transferrer.SetBasePriceAndInactive();
 
-            /////// Nytt 2015-11-13
             transferrer.SetAdminFees();
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message+@"\n\r"+ex.StackTrace);
+              var errorMessage = ex.Message+@"\n\r"+ex.StackTrace;
+              ErrorLogger.Add(errorMessage);
+              Console.WriteLine(errorMessage);
             }
 
             Console.WriteLine("Done. Press any key to quit.");

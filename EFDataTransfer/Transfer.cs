@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -21,7 +22,7 @@ namespace EFDataTransfer
         _errorLogger = errorLogger;
 
 #if DEBUG
-          _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=debug_migration_db");
+          _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=master");
           _dbCurrentDb = "debug_migration_db";
           _dataAccess.ValidateConnectionSettings();
 #else
@@ -391,6 +392,27 @@ namespace EFDataTransfer
                 _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(majorityScheduleId, postalCode));
             }
         }
+
+      public void ExecuteScriptFile(string pathToScript)
+      {
+          var script = File.OpenRead(pathToScript);
+          var stringReader = new StreamReader(script);
+          var batch = "";
+          while (!stringReader.EndOfStream)
+          {
+            var line = stringReader.ReadLine().Replace("DATABASE_NAME", _dbCurrentDb);
+
+            if (line == "GO")
+            {
+              _dataAccess.NonQuery(batch);
+              batch = "";              
+            }
+            else
+            {
+              batch += " " + line;
+            }
+          }
+      }
 
         public void CreateTeamUsers()
         {
