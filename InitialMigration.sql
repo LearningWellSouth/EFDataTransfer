@@ -59,6 +59,47 @@ FROM @SOURCE_DATABASE.dbo.TW_clients WHERE deleted = 'N'
 SET IDENTITY_INSERT  @TARGET_DATABASE.dbo.Persons OFF
 GO
 
+-- Vehicles (all resources are vehicles)
+SET IDENTITY_INSERT @TARGET_DATABASE.dbo.Vehicles ON
+INSERT INTO @TARGET_DATABASE.dbo.Vehicles (Id, Notes)
+	SELECT id, name 
+	FROM @SOURCE_DATABASE.dbo.TW_resources
+SET IDENTITY_INSERT @TARGET_DATABASE.dbo.Vehicles OFF
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'FAS 183', Phone = '0739-105501',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 1;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'GXF 831', Phone = '0739-105502',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 2;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'LTW 037', Phone = '0739-105503',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 3;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'MLK 024', Phone = '0739-105504',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 4;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'SHT 308', Phone = '0739-105505',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 5;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'HBZ 959', Phone = '0739-105506',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 6;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'MJJ 685', Phone = '0739-105507', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 7;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'DCD 390', Phone = '0739-105508', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 8;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'MET 795', Phone = '0739-105509', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 9;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'LWB 564', Phone = '0739-105510', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 10;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'DPL 351', Phone = '0739-105511', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 11;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'KTA 390', Phone = '0739-105512', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 12;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'OSX 272', Phone = '0739-105513', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 13;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'EEM 176', Phone = '0739-105514', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 14;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'OSX 267', Phone = '0739-105515', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 15;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'GXF 796', Phone = '0739-105516', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 16;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'HBZ 891', Phone = '0739-105517', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 17;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'LRD 526', Phone = '0739-105518', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 18;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'DPL 370', Phone = '0739-105519', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 19;
+update @TARGET_DATABASE.dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105520', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 20;
+GO
+
+-- Teams (one team per resource)
+INSERT INTO @TARGET_DATABASE.dbo.Teams (Name, WorkerLimit, VehicleId)
+	SELECT name, 2, id 
+	FROM @SOURCE_DATABASE.dbo.TW_resources
+GO
+
+-- Worker - Team mapping
+UPDATE @TARGET_DATABASE.dbo.Workers SET TeamId = team.Id
+	FROM @TARGET_DATABASE.dbo.Workers w
+	JOIN eriks_migration.dbo.TW_resources_employees emp ON w.UserId = emp.employee_id
+	JOIN @TARGET_DATABASE.dbo.Teams team ON team.VehicleId = emp.resource_id
+GO
+					
 -- Customers
 SET IDENTITY_INSERT @TARGET_DATABASE.dbo.Customers ON
 INSERT INTO @TARGET_DATABASE.dbo.Customers (

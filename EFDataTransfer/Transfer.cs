@@ -200,20 +200,11 @@ namespace EFDataTransfer
                 case "SCHEDULES":
                     SchedulesAndPeriods();
                     break;
-                case "VEHICLES":
-                    _dataAccess.NonQuery(SqlStrings.TransferVehicles);
-                    Console.WriteLine("Updating Vehicles with hardcoded values...");
-                    _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
-                    break;
                 case "TEAMS":
-                    _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
-                    Console.WriteLine("Connect Workers with Team...");
-                    _dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
                     Console.WriteLine("Connecting teams to cleaning objects...");
                     ConnectTeamsToCleaningObjects();
                 // Samtliga putsobjekt som inte får teamId av ovanstående har i TW-tabellen workarea_id = 0, vilket jag antar betyder att de inte är kopplade
                     break;
-
                 case "SUBSCRIPTIONS":
                     Subscriptions();
                     break;
@@ -225,7 +216,6 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM {0}.dbo.ServiceGroups)", _dbCurrentDb));
                     break;
                 case "ISSUES":
-
                     NotesAndIssues();
                     break;
                 case "USERS":

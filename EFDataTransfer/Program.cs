@@ -80,7 +80,6 @@ namespace EFDataTransfer
             allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "UsedTaxReductionRequestNumbers",  transferData = false });
                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SystemLogs",  transferData = false });*/
             tablesToMigrate.Add(new tableProperty() { tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
-            tablesToMigrate.Add(new tableProperty() { tableName = "Vehicles" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Teams" }); // Also connects schedules to postalcodes
             tablesToMigrate.Add(new tableProperty() { tableName = "Subscriptions" });
             tablesToMigrate.Add(new tableProperty() { tableName = "SubscriptionServices" });
@@ -91,7 +90,7 @@ namespace EFDataTransfer
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
             transferHandler.ExecuteScriptFile(PathToSqlScripts + "baseline_architecture.sql");
             //transferHandler.ExecuteScriptFile(PathToSqlScripts + "InsertPostalNumbers.sql");
-            //transferHandler.ExecuteScriptFile(PathToSqlScripts + "postal_codes_minimum.sql");
+            transferHandler.ExecuteScriptFile(PathToSqlScripts + "postal_codes_minimum.sql");
             transferHandler.ExecuteScriptFile(PathToSqlScripts + "InitialMigration.sql");
 
             transferHandler.FindClientPostalCodeMapping_CreateAddressAndCleaningObjectEntriesForClient();
