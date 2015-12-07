@@ -129,56 +129,6 @@ namespace EFDataTransfer
             ", dbCurrentDB, coId);
         }
 
-        public static string InsertAccounts
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Accounts ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (1, 'Intäkter abonnemang', 3001, 'Intäkter abonnemang', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (2, 'Kundfordran', 1510, 'Kundfordran', 1);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (3, 'Bank', 1930, 'Bank', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (4, 'Fordran skatteverket', 1513, 'Fordran skatteverket', 1);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (5, 'Utgående moms', 2611, 'Utgående moms', 3);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (6, 'Öres- och kronutjämning', 3740, 'Öres- och kronutjämning', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (7, 'Intäkter engångsputs', 3003, 'Intäkter engångsputs', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (8, 'Intäkter alla sidor', 3002, 'Intäkter alla sidor', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (9, 'Intäkt körersättning', 3009, 'Intäkt körersättning', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (10, 'Administrativa', 3540, 'Administrativa', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (11, 'Lämnade rabatter', 3730, 'Lämnade rabatter', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (12, 'Påminnelseavgift', 3930, 'Påminnelseavgift', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (14, 'Special', 0, NULL, 0);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (15, 'Kassa', 1910, 'Kassa', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (16, 'PlusGiro', 1920, 'PlusGiro', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (17, 'Förskott (skuld)', 2420, 'Förskott (skuld)', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (18, 'Presentkort (skuld)', 2421, 'Presentkort (skuld)', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (19, 'Övrig försäljning', 3051, 'Övrig försäljning', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (20, 'Lämnade Kampanjrabatter', 3732, NULL, 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.Accounts (Id, Name, AccountNumber, Designation, AccountType)
-                        VALUES (21, 'Putsskada', 4602, 'Putsskada', 4);
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Accounts OFF";
-            }
-        }
-
         public static string InsertIntoPostalCodeModels(
             string postalCode, string postalCodeType, string address, string streetNoLowest, string streetNoHighest, string city, string typeOfPlacement)
         {
@@ -208,40 +158,6 @@ namespace EFDataTransfer
                 streetNo, postalCodeModelId, addressType, address2, longitude, latitude);
         }
 
-        public static string InsertSubCategories
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.SubCategories ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(1, 'Tillägg', 'Övriga', 6);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(2, 'Tillval', 'Generella Tillval', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(3, 'Tillval', 'Uterum', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(4, 'Tillval', 'Övervåning', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(5, 'Tillval', 'Källarvåning', 2);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(6,'Övrigt', 'Extra', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(7, 'Övrigt', 'Alla sidor', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(8, 'Övrigt', 'Övrig Ekonomi', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(9, 'Övrigt', 'Textrad', 4);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(10, 'Grundpris', 'Grundputsning', 1);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(11, 'Övrigt', 'Admin o utkörning', 7);
-                    INSERT INTO " + dbCurrentDB + @".dbo.SubCategories (Id, [Type], Name, Category)
-                        VALUES(12, 'Övrigt', 'Övrigt', 4);
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.SubCategories OFF";
-            }
-        }
-
         public static string TransferEmployees
         {
             get
@@ -253,71 +169,6 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_employees
                     WHERE deleted = 'N'
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
-            }
-        }
-
-      public static string TransferServices
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.[Services] ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.[Services] (Id, Category, Name, AccountId, RUT, Vat, CalcHourly, CalcPercentage, CalcArea, CalcNone, [From], Circa,
-                        VisibleOnInvoice, IsSalarySetting, SortOrder, IsDefault, 
-                        SubCategoryId)
-                    SELECT id AS Id, 
-	                    CASE category_id
-		                    WHEN 1 THEN 1
-		                    WHEN 2 THEN 2
-		                    WHEN 3 THEN 2
-		                    WHEN 4 THEN 2
-		                    WHEN 5 THEN 4
-		                    WHEN 6 THEN 4
-		                    WHEN 8 THEN 4 
-		                    WHEN 9 THEN 7
-		                    WHEN 10 THEN 5
-		                    WHEN 11 THEN 7
-		                    WHEN 12 THEN 6
-	                    END AS Category, 
-	                    name AS Name, 
-	                    CASE account_id
-		                    WHEN 1 THEN 1
-		                    WHEN 2 THEN 8
-		                    WHEN 3 THEN 10
-		                    WHEN 4 THEN 7
-		                    WHEN 6 THEN 9
-		                    WHEN 13 THEN 20
-                            WHEN 14 THEN 21
-		                    END AS AccountId,
-	                    CASE WHEN deductible = 2 THEN 1 ELSE 0 END AS RUT,
-	                    CASE WHEN vat = 25 THEN 1 ELSE 0 END AS Vat,
-	                    CASE WHEN unit_id = 3 THEN 1 ELSE 0 END AS CalcHourly,
-                        0 AS CalcPercentage,
-                        0 AS CalcArea,
-                        0 AS CalcNone,
-                        0 AS [From],
-                        1 AS Circa,
-	                    CASE WHEN visible_invoice = 'Y' THEN 1 ELSE 0 END AS VisibleOnInvoice,
-	                    CASE WHEN servicetype_id IN (1, 3) THEN 1 ELSE 0 END AS IsSalarySetting,
-	                    id AS SortOrder,
-	                    CASE WHEN name = 'BV - Grundpris' OR name = 'Inställelse- o adm.avgift' THEN 1 ELSE 0 END AS IsDefault,
-	                    CASE 
-		                    WHEN name = 'BV - Grundpris' THEN 10
-		                    WHEN category_id = 1 THEN 2
-		                    WHEN category_id = 2 THEN 1
-		                    WHEN category_id = 3 THEN 3
-		                    WHEN category_id = 4 THEN 4
-		                    WHEN category_id = 5 THEN 12
-		                    WHEN category_id = 6 THEN 6
-		                    WHEN category_id = 8 THEN 11
-		                    WHEN category_id = 9 THEN 8
-		                    WHEN category_id = 10 THEN 7
-		                    WHEN name = 'Textrad' THEN 9
-		                    WHEN category_id = 11 THEN 8
-		                    WHEN category_id = 12 THEN 8
-		                    END AS SubCategoryId
-	                    FROM eriks_migration.dbo.TW_services WHERE deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.[Services] OFF";
             }
         }
 

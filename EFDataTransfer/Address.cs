@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -36,8 +35,8 @@ namespace EFDataTransfer
 
       return new Address()
       {
-        StreetName = extractStreetName(match),
-        StreetNumber = extractStreetNumber(match),
+        StreetName = _extractStreetName(match),
+        StreetNumber = _extractStreetNumber(match),
         StreetNumberFull = match[2].Value.Trim(),
         PostalNumber = ExtractPostalNumber(Convert.ToString(postalNumber)),
         City = ExtractCity(Convert.ToString(city))
@@ -46,15 +45,15 @@ namespace EFDataTransfer
 
     private static string ExtractCity(string city)
     {
-      if (string.IsNullOrEmpty(city)) return "";
-      return city.ToUpper(CultureInfo.InvariantCulture).Trim();
+      return string.IsNullOrEmpty(city) ? "" : city.ToUpper(CultureInfo.InvariantCulture).Trim();
     }
-    private static string extractStreetName(GroupCollection groups)
+
+    private static string _extractStreetName(GroupCollection groups)
     {
       return (groups.Count <= 0 ? "" : groups[1].Value.ToUpper());
     }
 
-    private static int extractStreetNumber(GroupCollection groups)
+    private static int _extractStreetNumber(GroupCollection groups)
     {
       if (groups.Count <= 1) return 0;
       var val = groups[3].Value;
@@ -74,7 +73,7 @@ namespace EFDataTransfer
 
       if (!isValidEnglishOrFrenchPostalNumber(postalNumber))
       {
-        _logger.PostError("Postalnumber "+postalNumber+" is neither swedish nor international format");
+        _logger.PostError("Postalnumber \""+postalNumber+"\" has invalid format");
         return null;
       }
 

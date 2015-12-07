@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="TestAddressAndPostalCodeHandling.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestSQLScriptHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\EFDataTransfer\EFDataTransfer.csproj">

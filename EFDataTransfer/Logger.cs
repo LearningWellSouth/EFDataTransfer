@@ -46,6 +46,7 @@ namespace EFDataTransfer
     public void PostRotatingNote(string s)
     {
       _currentNote = s;
+      Console.Write(s);
     }
 
     private static string MakeMessagePrefix(string type)

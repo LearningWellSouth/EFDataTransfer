@@ -82,9 +82,6 @@ namespace EFDataTransfer
             tablesToMigrate.Add(new tableProperty() { tableName = "Schedules" });  // Kontrollera mot postnummer-område.xlsx
             tablesToMigrate.Add(new tableProperty() { tableName = "Vehicles" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Teams" }); // Also connects schedules to postalcodes
-            tablesToMigrate.Add(new tableProperty() { tableName = "Accounts" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "SubCategories" });
-            tablesToMigrate.Add(new tableProperty() { tableName = "Services" });
             tablesToMigrate.Add(new tableProperty() { tableName = "Subscriptions" });
             tablesToMigrate.Add(new tableProperty() { tableName = "SubscriptionServices" });
             tablesToMigrate.Add(new tableProperty() { tableName = "CleaningObjectPrices" });
@@ -93,7 +90,8 @@ namespace EFDataTransfer
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             //////Kopplingen av arbetslag till användare funkar inte, löses manuellt
             transferHandler.ExecuteScriptFile(PathToSqlScripts + "baseline_architecture.sql");
-            transferHandler.ExecuteScriptFile(PathToSqlScripts + "InsertPostalNumbers.sql");
+            //transferHandler.ExecuteScriptFile(PathToSqlScripts + "InsertPostalNumbers.sql");
+            //transferHandler.ExecuteScriptFile(PathToSqlScripts + "postal_codes_minimum.sql");
             transferHandler.ExecuteScriptFile(PathToSqlScripts + "InitialMigration.sql");
 
             transferHandler.FindClientPostalCodeMapping_CreateAddressAndCleaningObjectEntriesForClient();
@@ -162,7 +160,7 @@ namespace EFDataTransfer
             }
             catch (Exception ex)
             {
-              logger.PostError(ex.Message+@"\n\r"+ex.StackTrace);
+              logger.PostError(ex.Message+"\r\n"+ex.StackTrace);
             }
 
             Console.WriteLine("Done. Press any key to quit.");

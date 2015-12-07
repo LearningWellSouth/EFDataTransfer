@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace EFDataTransfer
 {
@@ -216,15 +213,7 @@ namespace EFDataTransfer
                     ConnectTeamsToCleaningObjects();
                 // Samtliga putsobjekt som inte får teamId av ovanstående har i TW-tabellen workarea_id = 0, vilket jag antar betyder att de inte är kopplade
                     break;
-                case "ACCOUNTS":
-                    _dataAccess.NonQuery(SqlStrings.InsertAccounts);
-                    break;
-                case "SUBCATEGORIES":
-                    _dataAccess.NonQuery(SqlStrings.InsertSubCategories);
-                    break;
-                case "SERVICES":
-                    _dataAccess.NonQuery(SqlStrings.TransferServices);
-                    break;
+
                 case "SUBSCRIPTIONS":
                     Subscriptions();
                     break;
@@ -361,19 +350,24 @@ namespace EFDataTransfer
       {
           _logger.PostInfo("Started running script "+pathToScript);
           using(var script = File.OpenRead(pathToScript))
-          using(var stringReader = new StreamReader(script)){
+          using(var stringReader = new StreamReader(script))
+          {            
             var batch = "";
             while (!stringReader.EndOfStream)
             {
-              var line = stringReader.ReadLine()
-                .Replace("DATABASE_NAME", _dbCurrentDb)
-                .Replace("@TARGET_DATABASE", _dbCurrentDb)
-                .Replace("@SOURCE_DATABASE", "eriks_migration");
+              var line = ReadLineFromScript(stringReader);
 
               if (line == "GO")
               {
-                _logger.PostRotatingNote(string.Format("Executing batch \"{0}\"",batch));
-                _dataAccess.NonQuery(batch);
+                try
+                {
+                  _dataAccess.NonQuery(batch);
+                }
+                catch (Exception ex)
+                {
+                  _logger.PostError(string.Format("{0} while running batch \"{1}\"", ex.Message, batch));
+                  throw;
+                }       
                 batch = "";              
               }
               else
@@ -384,7 +378,18 @@ namespace EFDataTransfer
           };
       }
 
-        public void CreateTeamUsers()
+      public string ReadLineFromScript(StreamReader stringReader)
+      {
+        var line = stringReader.ReadLine();
+        if (string.IsNullOrEmpty(line)) return "";
+        line = Regex.Replace(line.Trim(), "--.*", "");
+        return line
+          .Replace("DATABASE_NAME", _dbCurrentDb)
+          .Replace("@TARGET_DATABASE", _dbCurrentDb)
+          .Replace("@SOURCE_DATABASE", "eriks_migration");
+      }
+
+      public void CreateTeamUsers()
         {
             _dataAccess.NonQuery(SqlStrings.CreateUsersForTeams);
         }

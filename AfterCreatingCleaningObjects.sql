@@ -8,10 +8,10 @@ INSERT INTO @TARGET_DATABASE.dbo.Contacts(
 		FROM @SOURCE_DATABASE.dbo.TW_clients mother
 		INNER JOIN @SOURCE_DATABASE.dbo.TW_clients child ON child.mother_id = mother.id AND child.deleted = 'N'
 		INNER JOIN @SOURCE_DATABASE.dbo.TW_clientaddresses address ON address.client_id = mother.id AND address.deleted = 'N'
-		INNER JOIN @TARGET_DATABASE.dbo.CleaningObjects cleaningObj WHERE cleaningObj.Id = address.id
+		INNER JOIN @TARGET_DATABASE.dbo.CleaningObjects cleaningObj ON cleaningObj.Id = address.id
 		WHERE mother.deleted = 'N'
 GO
-UPDATE @TARGET_DATABASE@.dbo.Contacts SET RUT = 
+UPDATE @TARGET_DATABASE.dbo.Contacts SET RUT = 
 	CASE 
 		WHEN twc.full_reduction_pot = 0 AND twc.persnbr IS NOT NULL AND twc.persnbr <> ''
 		THEN 
@@ -22,7 +22,7 @@ UPDATE @TARGET_DATABASE@.dbo.Contacts SET RUT =
 			END
 		ELSE 0 
 	END
-FROM @TARGET_DATABASE@.dbo.Contacts c
+FROM @TARGET_DATABASE.dbo.Contacts c
 INNER JOIN @SOURCE_DATABASE.dbo.TW_clients twc ON twc.id = c.PersonId
 GO
 UPDATE @TARGET_DATABASE.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM @TARGET_DATABASE.dbo.Persons WHERE NoPersonalNoValidation = 1)
