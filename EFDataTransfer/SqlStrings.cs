@@ -718,7 +718,7 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement FROM " + dbCurrentDB + @".dbo.PostalCodeModels";
+                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, PostalCodeType FROM " + dbCurrentDB + @".dbo.PostalCodeModels";
                     // WHERE PostalCode IN (SELECT postalcode_fixed FROM eriks_migration.dbo.TW_clientaddresses)"; Kan inte köra detta pga att landskoder tillkommit i postnr
             }
         }
