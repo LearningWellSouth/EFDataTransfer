@@ -11,14 +11,14 @@ namespace EFDataTransfer
 {
     public class Transfer
     {
-      public const string POSTALCODEMODEL_CODETYPE = "PostalCodeType";
+      public const string POSTAL_CODE_PLACEMENT_TYPE = "TypeOfPlacement";
       private readonly DataAccess _dataAccess;
         private readonly string _dbCurrentDb;
-      private readonly ErrorLogger _errorLogger;
+      private readonly Logger _logger;
 
-      public Transfer(ErrorLogger errorLogger)
+      public Transfer(Logger logger)
         {
-        _errorLogger = errorLogger;
+        _logger = logger;
 
 #if DEBUG
           _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=debug_migration_db");
@@ -32,118 +32,136 @@ namespace EFDataTransfer
             SqlStrings.dbToUse = _dbCurrentDb;
         }
 
-        private void Addresses()
+    class PostalCodeArea
+    {
+        public int From,To;
+        public string PostalCode;
+        public int Id;
+
+        public PostalCodeArea(Address addr, int id)
         {
-            var twAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWAddresses);
-            var postalCodeModels = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPostalCodeModels);
-            var clients = _dataAccess.SelectIntoTable("SELECT id, mother_id FROM eriks_migration.dbo.TW_clients");
+            Id = id;
+            PostalCode = addr.PostalNumber;
+        }
+    }
+    public void Addresses()
+    {
+        var twAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWAddresses);
+        var postalCodeModels = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPostalCodeModels);
+        var clients = _dataAccess.SelectIntoTable("SELECT id, mother_id FROM eriks_migration.dbo.TW_clients");
+        var cache = new Dictionary<string,PostalCodeArea>();
 
-            var cleaningObjects = new DataTable();
-            cleaningObjects.Columns.AddRange(new DataColumn[] {
-                new DataColumn("Id", typeof(int)),
-                new DataColumn("PostalAddressModelId", typeof(int)),
-                new DataColumn("IsActive", typeof(bool)),
-                new DataColumn("RouteIndex", typeof(int)),
-                new DataColumn("Invoicable", typeof(bool)),
-                new DataColumn("IsNew", typeof(bool))
-            });
-            var coMappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("Id", "Id"),
-                new SqlBulkCopyColumnMapping("PostalAddressModelId", "PostalAddressModelId"),
-                new SqlBulkCopyColumnMapping("IsActive", "IsActive"),
-                new SqlBulkCopyColumnMapping("RouteIndex", "RouteIndex"),
-                new SqlBulkCopyColumnMapping("Invoicable", "Invoicable"),
-                new SqlBulkCopyColumnMapping("IsNew", "IsNew")
-            };
+        var cleaningObjects = new DataTable();
+        cleaningObjects.Columns.AddRange(new DataColumn[] {
+            new DataColumn("Id", typeof(int)),
+            new DataColumn("PostalAddressModelId", typeof(int)),
+            new DataColumn("IsActive", typeof(bool)),
+            new DataColumn("RouteIndex", typeof(int)),
+            new DataColumn("Invoicable", typeof(bool)),
+            new DataColumn("IsNew", typeof(bool))
+        });
+        var coMappings = MakeSimpleFieldMapping(new[]
+            {"Id", "PostalAddressModelId", "IsActive", "RouteIndex", "Invoicable", "IsNew"});
 
-            var personPostalAddressModel = new DataTable();
-            personPostalAddressModel.Columns.AddRange(new DataColumn[] {
-                new DataColumn("PersonId", typeof(int)),
-                new DataColumn("PostalAddressModelId", typeof(int)),
-                new DataColumn("Type", typeof(int))
-            });
-            var pMappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("PersonId", "PersonId"),
-                new SqlBulkCopyColumnMapping("PostalAddressModelId", "PostalAddressModelId"),
-                new SqlBulkCopyColumnMapping("Type", "Type")
-            };
+        var personPostalAddressModel = new DataTable();
+        personPostalAddressModel.Columns.AddRange(new DataColumn[] {
+            new DataColumn("PersonId", typeof(int)),
+            new DataColumn("PostalAddressModelId", typeof(int)),
+            new DataColumn("Type", typeof(int))
+        });
+        var pMappings = MakeSimpleFieldMapping(new[]{"PersonId","PostalAddressModelId","Type"});
 
-            var recordNumber = 0;
-          var parser = new AddressParser(_errorLogger);
-            foreach (DataRow clientRecord in twAddresses.Rows)
+        var recordNumber = 0;
+        var parser = new AddressParser(_logger);
+        foreach (DataRow clientRecord in twAddresses.Rows)
+        {
+            recordNumber++;
+            if (recordNumber%1000 == 0)
+                Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
+
+            var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"],clientRecord["city"]);
+
+            int postalCodeModelId = 0;
+            if (cache.ContainsKey(parsedAddress.GetKeyString()))
             {
+                var area = cache[parsedAddress.GetKeyString()];
+                postalCodeModelId = area.Id;
+            }
+            else
+            {
+                var possiblePostalCodeModels = postalCodeModels.Select(
+                    string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City,parsedAddress.StreetName));
 
-                recordNumber++;
-                if (recordNumber % 1000 == 0)
-                    Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
-
-              var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"], clientRecord["city"]);
-
-                 var possiblePostalCodeModels = postalCodeModels.Select(string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City, parsedAddress.StreetName));
-
-                  int postalCodeModelId = 0;
-                  if (possiblePostalCodeModels.Any())
-                  {
+                if (possiblePostalCodeModels.Any())
+                {
                     var postalCode = possiblePostalCodeModels.FirstOrDefault(
-                      x => isStreetNumberWithinMaxAndMin(x, parsedAddress.StreetNumber) && hasCorrectPostalNumberType(x,parsedAddress));
+                        x =>
+                            isStreetNumberWithinMaxAndMin(x, parsedAddress.StreetNumber)
+                            && hasCorrectPostalNumberType(x, parsedAddress));
 
-                      if (postalCode != null)
-                          postalCodeModelId = Convert.ToInt32(postalCode["Id"]);
-                  }
-
-                if (postalCodeModelId == 0)
-                {
-                  postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress.PostalNumber, parsedAddress, parsedAddress.City);
+                    if (postalCode != null)
+                        postalCodeModelId = Convert.ToInt32(postalCode["Id"]);
                 }
-
-                var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
-
-                int postalAddressModelId;
-
-                if (postalAddressModels.Rows.Count > 0)
-                {
-                    postalAddressModelId = Convert.ToInt32(postalAddressModels.Rows[0]["Id"]);
-                }
-                else
-                {
-                  var address2 = Convert.IsDBNull(clientRecord["co_address"]) ? "" : Convert.ToString(clientRecord["co_address"]);
-                  var longitude = extractFloatOrDefault(clientRecord, "longitude");
-                  var latitude = extractFloatOrDefault(clientRecord, "latitude");
-
-                  postalAddressModelId = InsertWithKeyReturn(SqlStrings.InsertPostalAddressModel(parsedAddress.StreetNumberFull, postalCodeModelId, "AT", address2, longitude, latitude));
-                }
-
-                bool isDelivery = (Convert.ToString(clientRecord["is_delivery"]) == "Y") || (Convert.ToInt32(clientRecord["route_num"]) > 0 && Convert.ToInt32(clientRecord["workarea_id"]) > 0);
-                bool isInvoice = Convert.ToString(clientRecord["is_invoice"]) == "Y";
-
-                foreach (var person in clients.Select("id = " + clientRecord["client_id"]))
-                {
-                    if (isDelivery)
-                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 1);
-
-                    if (isInvoice)
-                    {
-                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 2);
-                        // Inte helt säker på detta
-                      // TODO : now thats an interesting comment! :) "i'm not sure..."
-                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 4);
-                    }
-                }
-
-                if (isDelivery)
-                    cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false);
+            }
+            if (postalCodeModelId == 0)
+            {
+                postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress);
+                cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea(parsedAddress, postalCodeModelId));
             }
 
-            _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
-            _dataAccess.InsertMany(string.Format("{0}.dbo.PersonPostalAddressModels", _dbCurrentDb), personPostalAddressModel, false, pMappings);
+            var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
+
+            int postalAddressModelId;
+
+            if (postalAddressModels.Rows.Count > 0)
+            {
+                postalAddressModelId = Convert.ToInt32(postalAddressModels.Rows[0]["Id"]);
+            }
+            else
+            {
+                var address2 = Convert.IsDBNull(clientRecord["co_address"]) ? "" : Convert.ToString(clientRecord["co_address"]);
+                var longitude = extractFloatOrDefault(clientRecord, "longitude");
+                var latitude = extractFloatOrDefault(clientRecord, "latitude");
+
+                postalAddressModelId = InsertWithKeyReturn(SqlStrings.InsertPostalAddressModel(parsedAddress.StreetNumberFull, postalCodeModelId, "AT", address2, longitude, latitude));
+            }
+
+            bool isDelivery = (Convert.ToString(clientRecord["is_delivery"]) == "Y") || (Convert.ToInt32(clientRecord["route_num"]) > 0 && Convert.ToInt32(clientRecord["workarea_id"]) > 0);
+            bool isInvoice = Convert.ToString(clientRecord["is_invoice"]) == "Y";
+
+            foreach (var person in clients.Select("id = " + clientRecord["client_id"]))
+            {
+                if (isDelivery)
+                    personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 1);
+
+                if (isInvoice)
+                {
+                    personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 2);
+                    // Inte helt säker på detta
+                    // TODO : now thats an interesting comment! :) "i'm not sure..."
+                    personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 4);
+                }
+            }
+
+            if (isDelivery) // TODO : modify this to bind to customers. Now the customers are created before any way so we may do this. See the script "AfterCreatingCleaningObjects"
+                cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false);
         }
+
+        _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
+        _dataAccess.InsertMany(string.Format("{0}.dbo.PersonPostalAddressModels", _dbCurrentDb), personPostalAddressModel, false, pMappings);
+    }
+
+      private static SqlBulkCopyColumnMapping[] MakeSimpleFieldMapping(IEnumerable<string> fields)
+      {
+        return fields.Select(field => new SqlBulkCopyColumnMapping(field, field)).ToArray();
+      }
 
       public static bool hasCorrectPostalNumberType(DataRow dataRow, Address parsedAddress)
       {
         const string EVEN = "NJ";
         const string ODD = "NU";
 
-        var type = Convert.ToString(dataRow[POSTALCODEMODEL_CODETYPE]);
+        var type = Convert.ToString(dataRow[POSTAL_CODE_PLACEMENT_TYPE]);
         if (!(type == EVEN || type == ODD)) return true;
         return (parsedAddress.isEvenStreetNumber() ^ type == ODD);
       }
@@ -156,15 +174,15 @@ namespace EFDataTransfer
         }
         catch (Exception exc)
         {
-          _errorLogger.Add("Exception while inserting "+recurseExceptionMessages(exc)+exc.StackTrace);
+          _logger.PostError("Exception while inserting "+RecurseOverExceptionMessages(exc)+exc.StackTrace);
           throw;
         }
       }
 
-      private string recurseExceptionMessages(Exception exc)
+      private string RecurseOverExceptionMessages(Exception exc)
       {
         if (exc == null) return "";
-        return exc.Message + recurseExceptionMessages(exc.InnerException);
+        return exc.Message + RecurseOverExceptionMessages(exc.InnerException);
       }
 
       private static float extractFloatOrDefault(DataRow row, string columnName, float def = 0.0F)
@@ -178,9 +196,10 @@ namespace EFDataTransfer
           "SELECT Id FROM " + _dbCurrentDb + ".dbo.PostalAddressModels WHERE PostalCodeModelId = '{0}' AND StreetNo = '{1}'", postalCodeModelId, parsedAddress.StreetNumberFull));
       }
 
-      private int InsertNewPostalCodeModelRow(string postalCodeStr, Address parsedAddress, string city)
+      private int InsertNewPostalCodeModelRow(Address addr)
       {
-        return InsertWithKeyReturn(SqlStrings.InsertIntoPostalCodeModels(postalCodeStr, "AT", parsedAddress.StreetName, parsedAddress.StreetNumberFull, parsedAddress.StreetNumberFull, city, parsedAddress.isEvenStreetNumber() ? "NJ" : "NU"));
+        _logger.PostInfo(string.Format("Creating new postal code {0} {1} {2}",addr.StreetName,addr.City,addr.PostalNumber));
+        return InsertWithKeyReturn(SqlStrings.InsertIntoPostalCodeModels(addr.PostalNumber, "AT", addr.StreetName, 1, addr.StreetNumber, addr.City, addr.isEvenStreetNumber() ? "NJ" : "NU"));
       }
 
       public static bool isStreetNumberWithinMaxAndMin(DataRow x, int streetNumber)
@@ -378,7 +397,6 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.SetPostalCodeScheduleIds);
         }
 
-      // TODO : Schedules, this means there is an ambiguation in the schedules data. Also there are notes about "should this be done or not"
         // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
         public void MergePostalCodeSchedules()
         {

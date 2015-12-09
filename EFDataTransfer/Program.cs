@@ -50,7 +50,7 @@ namespace EFDataTransfer
     {
         static void Main(string[] args)
         {
-          var ErrorLogger = new ErrorLogger();
+          var ErrorLogger = new Logger();
             try
             {
               var transferrer = new Transfer(ErrorLogger);

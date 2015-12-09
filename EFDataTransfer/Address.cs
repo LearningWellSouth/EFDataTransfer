@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -17,53 +16,60 @@ namespace EFDataTransfer
     {
       return (StreetNumber % 2) == 0;
     }
+
+      public string GetKeyString()
+      {
+          return City + ":" + StreetName;
+      }
   }
 
   public class AddressParser {
-    private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)( ([0-9]+)[ \D]*)?$");
-    private ErrorLogger _logger;
+      private static readonly Regex StreetAddressMatcher = new Regex(@"^([\D]+)(( ?([0-9]+)[^ ]*).*)?$");
+    private Logger _logger;
 
-    public AddressParser(ErrorLogger logger)
+    public AddressParser(Logger logger)
     {
       _logger = logger;
     }
 
     public Address ParseAddress(object address, object postalNumber, object city)
     {
-      if (address == null)
-        throw new NullReferenceException();
-      var match = StreetAddressMatcher.Match(Convert.ToString(address)).Groups;
+        if (address == null)
+            throw new NullReferenceException();
+        var match = StreetAddressMatcher.Match(Convert.ToString(address));
 
-      return new Address()
-      {
-        StreetName = extractStreetName(match),
-        StreetNumber = extractStreetNumber(match),
-        StreetNumberFull = match[2].Value.Trim(),
-        PostalNumber = ExtractPostalNumber(Convert.ToString(postalNumber)),
-        City = ExtractCity(Convert.ToString(city))
-      };
+        if (!match.Success)
+            _logger.PostError(string.Format("Address: {0} could not be interpreted correctly", address));
+        return new Address()
+        {
+            StreetName = _extractStreetName(match.Groups),
+            StreetNumber = _extractStreetNumber(match.Groups),
+            StreetNumberFull = match.Groups[2].Value.Trim(),
+            PostalNumber = ExtractPostalNumber(Convert.ToString(postalNumber)),
+            City = ExtractCity(Convert.ToString(city))
+        };
     }
 
     private static string ExtractCity(string city)
     {
-      if (string.IsNullOrEmpty(city)) return "";
-      return city.ToUpper(CultureInfo.InvariantCulture).Trim();
-    }
-    private static string extractStreetName(GroupCollection groups)
-    {
-      return (groups.Count <= 0 ? "" : groups[1].Value.ToUpper());
+      return string.IsNullOrEmpty(city) ? "" : city.ToUpper(CultureInfo.InvariantCulture).Trim();
     }
 
-    private static int extractStreetNumber(GroupCollection groups)
+    private string _extractStreetName(GroupCollection groups)
+    {
+      return (groups.Count <= 0 ? "" : groups[1].Value.ToUpper().TrimEnd());
+    }
+
+    private static int _extractStreetNumber(GroupCollection groups)
     {
       if (groups.Count <= 1) return 0;
-      var val = groups[3].Value;
+      var val = groups[4].Value;
       return string.IsNullOrEmpty(val) ? 0 : (Convert.ToInt32(val));
     }
 
     public static int ExtractBeginingOfStringAsInteger(string input)
     {
-      return string.IsNullOrEmpty(input) ? 0 : Convert.ToInt32(Regex.Replace("0" + input, @"[\D]+.*$", ""));
+      return string.IsNullOrEmpty(input) ? 0 : Convert.ToInt32("0"+Regex.Replace(input.TrimStart(), @"[\D]+.*$", ""));
     }
 
     private string ExtractPostalNumber(string postalNumber)
@@ -74,7 +80,7 @@ namespace EFDataTransfer
 
       if (!isValidEnglishOrFrenchPostalNumber(postalNumber))
       {
-        _logger.Add("Postalnumber "+postalNumber+" is neither swedish nor international format");
+        _logger.PostError("Postalnumber \""+postalNumber+"\" has invalid format");
         return null;
       }
 

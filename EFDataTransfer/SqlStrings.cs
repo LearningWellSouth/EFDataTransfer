@@ -194,7 +194,7 @@ namespace EFDataTransfer
         }
 
         public static string InsertIntoPostalCodeModels(
-            string postalCode, string postalCodeType, string address, string streetNoLowest, string streetNoHighest, string city, string typeOfPlacement)
+            string postalCode, string postalCodeType, string address, int streetNoLowest, int streetNoHighest, string city, string typeOfPlacement)
         {
             return string.Format(@"INSERT INTO " + dbCurrentDB + @".dbo.PostalCodeModels (PostalCode, PostalCodeType, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, IsNotValid)
                 OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
@@ -938,7 +938,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
 	                    AND header NOT IN ('Uppdragsbeskrivning', '')
 	                    GROUP BY table_id
@@ -970,7 +970,7 @@ namespace EFDataTransfer
         public static string SelectHeaderAndContentIdsFromDuplicateTWNotesForDuring
         {
             get {
-                return @"
+                return string.Format(@"
                     SELECT table_id
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
@@ -979,12 +979,12 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
 	                  --  AND header NOT IN ('Uppdragsbeskrivning', '')
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) > 1
-                    )";
+                    )",dbCurrentDB);
             }
         }            
 
@@ -1053,7 +1053,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) = 1
@@ -1098,7 +1098,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) = 1

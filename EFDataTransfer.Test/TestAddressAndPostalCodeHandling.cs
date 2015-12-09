@@ -8,14 +8,14 @@ namespace EFDataTransfer.Test
   public class TestAddressAndPostalCodeHandling
   {
     private AddressParser _parser = null;
-    private ErrorLogger _logger;
+    private Logger _logger;
 
     private delegate void Expression();
 
     [TestInitialize]
     public void SetUp()
     {
-      _logger = new ErrorLogger();
+      _logger = new Logger();
       _parser = new AddressParser(_logger);
     }
 
@@ -29,6 +29,11 @@ namespace EFDataTransfer.Test
       AssertAddressPartsAre("lång rö gatan 20", "LÅNG RÖ GATAN", 20);
       AssertAddressPartsAre("allé 20 B", "ALLÉ", 20, "20 B");
       AssertAddressPartsAre("address 20A", "ADDRESS", 20, "20A");
+      AssertAddressPartsAre("Kullagatan 58 lgh 1203", "KULLAGATAN", 58, "58 lgh 1203");
+      AssertAddressPartsAre("Karl XI Gatan 15 A lgh 1202", "KARL XI GATAN", 15, "15 A lgh 1202");
+      AssertAddressPartsAre("Brännanbyaväg 114-16", "BRÄNNANBYAVÄG", 114, "114-16");
+      AssertAddressPartsAre("Höganäsvägen 92, Box 104", "HÖGANÄSVÄGEN", 92, "92, Box 104");
+      AssertAddressPartsAre("Åkeshögsvägen47", "ÅKESHÖGSVÄGEN", 47, "47");
     }
 
     [TestMethod]
@@ -39,6 +44,7 @@ namespace EFDataTransfer.Test
       Assert.AreEqual(1, AddressParser.ExtractBeginingOfStringAsInteger("1"));
       Assert.AreEqual(123, AddressParser.ExtractBeginingOfStringAsInteger("123"));
       Assert.AreEqual(123, AddressParser.ExtractBeginingOfStringAsInteger("123-1"));
+      Assert.AreEqual(123, AddressParser.ExtractBeginingOfStringAsInteger("  123"));
     }
 
     [TestMethod]
@@ -55,7 +61,7 @@ namespace EFDataTransfer.Test
       Assert.AreEqual("BE-1380", extractPostalNumber("BE-1380"));
       Assert.AreEqual("GB-KT112EX", extractPostalNumber("GB-KT112EX"));
 
-      Assert.AreEqual(4, _logger.GetErrorLog().Count);
+      Assert.AreEqual(14, _logger.GetLog().Count);
     }
 
     [TestMethod]
@@ -94,15 +100,15 @@ namespace EFDataTransfer.Test
       var oddAddress = makeAddressWithOddStreetNumber();
       var evenAddress = makeAddressWithEvenStreetNumber();
 
-      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NJ";
+      row[Transfer.POSTAL_CODE_PLACEMENT_TYPE] = "NJ";
       Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, evenAddress));
       Assert.IsFalse(Transfer.hasCorrectPostalNumberType(row, oddAddress));
 
-      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NU";
+      row[Transfer.POSTAL_CODE_PLACEMENT_TYPE] = "NU";
       Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, oddAddress));
       Assert.IsFalse(Transfer.hasCorrectPostalNumberType(row, evenAddress));
 
-      row[Transfer.POSTALCODEMODEL_CODETYPE] = "foo";
+      row[Transfer.POSTAL_CODE_PLACEMENT_TYPE] = "foo";
       Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, oddAddress));
       Assert.IsTrue(Transfer.hasCorrectPostalNumberType(row, evenAddress));
     }
@@ -123,7 +129,7 @@ namespace EFDataTransfer.Test
       var row = table.NewRow();
       row["StreetNoLowest"] = "1";
       row["StreetNoHighest"] = "3";
-      row[Transfer.POSTALCODEMODEL_CODETYPE] = "NU";
+      row[Transfer.POSTAL_CODE_PLACEMENT_TYPE] = "NU";
       return row;
     }
 
@@ -132,7 +138,7 @@ namespace EFDataTransfer.Test
       var table = new DataTable();
       table.Columns.Add(new DataColumn("StreetNoLowest", typeof (string)));
       table.Columns.Add(new DataColumn("StreetNoHighest", typeof (string)));
-      table.Columns.Add(new DataColumn(Transfer.POSTALCODEMODEL_CODETYPE, typeof (string)));
+      table.Columns.Add(new DataColumn(Transfer.POSTAL_CODE_PLACEMENT_TYPE, typeof (string)));
       return table;
     }
 
