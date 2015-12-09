@@ -34,6 +34,7 @@ namespace EFDataTransfer.Test
       AssertAddressPartsAre("Brännanbyaväg 114-16", "BRÄNNANBYAVÄG", 114, "114-16");
       AssertAddressPartsAre("Höganäsvägen 92, Box 104", "HÖGANÄSVÄGEN", 92, "92, Box 104");
       AssertAddressPartsAre("Åkeshögsvägen47", "ÅKESHÖGSVÄGEN", 47, "47");
+      Assert.AreEqual(31, _logger.GetLog().Count);
     }
 
     [TestMethod]
@@ -56,12 +57,22 @@ namespace EFDataTransfer.Test
       Assert.AreEqual(null, extractPostalNumber("123"));
       Assert.AreEqual("12345", extractPostalNumber("  12345  "));
       Assert.AreEqual("12345", extractPostalNumber("12345"));
+      Assert.AreEqual("12345", extractPostalNumber(" 123 45 "));
       Assert.AreEqual("24233", extractPostalNumber("24233Höör"));
       Assert.AreEqual("CH-1073", extractPostalNumber("CH-1073"));
       Assert.AreEqual("BE-1380", extractPostalNumber("BE-1380"));
       Assert.AreEqual("GB-KT112EX", extractPostalNumber("GB-KT112EX"));
 
-      Assert.AreEqual(14, _logger.GetLog().Count);
+      Assert.AreEqual(4, _logger.GetLog().Count);
+    }
+
+    [TestMethod]
+    public void InterpretPostalCodeAsInteger()
+    {
+        Assert.AreEqual(99999, parsePostalCode(" 999 99 ").GetPostalCodeAsInteger());
+        Assert.AreEqual(12345, parsePostalCode("12345").GetPostalCodeAsInteger());
+        Assert.AreEqual(0, parsePostalCode("1234").GetPostalCodeAsInteger());
+        Assert.AreEqual(0, parsePostalCode("abc").GetPostalCodeAsInteger());            
     }
 
     [TestMethod]
@@ -71,17 +82,24 @@ namespace EFDataTransfer.Test
       Assert.AreEqual("", extractCity(""));
       Assert.AreEqual("CITY", extractCity("city"));
       Assert.AreEqual("CITY", extractCity(" \t\ncity\t\n "));
+    
+      Assert.AreEqual(0, _logger.GetLog().Count);
     }
 
     private string extractCity(string city)
     {
-      return _parser.ParseAddress("", null, city).City;
+      return _parser.ParseAddress("Addr", "12345", city).City;
     }
 
     private string extractPostalNumber(string postalNumber)
     {
-      return _parser.ParseAddress("",postalNumber,null).PostalNumber;
+      return parsePostalCode(postalNumber).PostalNumber;
     }
+
+      private Address parsePostalCode(string postalCode)
+      {
+          return _parser.ParseAddress("Addr", postalCode, "city");
+      }
 
     [TestMethod]
     public void TestCheckingOfStreetNumberSpan() {

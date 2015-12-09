@@ -21,6 +21,12 @@ namespace EFDataTransfer
       {
           return City + ":" + StreetName;
       }
+
+      public int GetPostalCodeAsInteger()
+      {
+          var value = 0;
+          return (Int32.TryParse(PostalNumber, out value) ? value : 0);
+      }
   }
 
   public class AddressParser {
@@ -74,17 +80,15 @@ namespace EFDataTransfer
 
     private string ExtractPostalNumber(string postalNumber)
     {
-      postalNumber = postalNumber.Trim();
-      var numeric = ExtractBeginingOfStringAsInteger(postalNumber);
-      if (numeric > 9999 && numeric < 99999) return numeric.ToString();
+        postalNumber = Regex.Replace(postalNumber,@"\s","");
+        var numeric = ExtractBeginingOfStringAsInteger(postalNumber);
+        if (numeric > 9999 && numeric <= 99999) return numeric.ToString();
 
-      if (!isValidEnglishOrFrenchPostalNumber(postalNumber))
-      {
+        if (isValidEnglishOrFrenchPostalNumber(postalNumber))
+            return postalNumber;
+        
         _logger.PostError("Postalnumber \""+postalNumber+"\" has invalid format");
         return null;
-      }
-
-      return postalNumber;
     }
 
     private static bool isValidEnglishOrFrenchPostalNumber(string val)

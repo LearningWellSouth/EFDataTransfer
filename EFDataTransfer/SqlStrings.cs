@@ -759,7 +759,7 @@ namespace EFDataTransfer
 
 
         public const string SelectTWAddresses
-                = "SELECT id, [address], co_address, postalcode_fixed, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
+                = "SELECT id, [address], co_address, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
                     "FROM eriks_migration.dbo.TW_clientaddresses WHERE deleted = 'N'";
 
       public static string SelectTWServices
