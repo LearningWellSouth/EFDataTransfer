@@ -583,10 +583,12 @@ namespace EFDataTransfer
                 if (woPrice != 0 && sPrice != 0)
                     mod = (float)Math.Round((decimal)(woPrice / sPrice), 4);
                 else if (sPrice == 0 && woPrice != 0)
+                {
                     mod = (float)woPrice;
 
-                if (mod > 0)
-                    mod = (float)Math.Round(mod * 1.25f, 4);
+                    if (mod > 0)
+                        mod = (float)Math.Round(mod * 1.25f, 4);
+                }
 
                 coPrices.Rows.Add(new object[] { coId, Convert.ToInt32(row["ServiceId"]), mod, Convert.ToString(row["wolDesc"]) });
             }
