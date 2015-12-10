@@ -27,7 +27,7 @@ namespace EFDataTransfer
 #else
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
             //dbCurrentDB = "eriks_dev_db";
-            dbCurrentDB = "putsa_db";
+            _dbCurrentDb = "putsa_db";
 #endif
             SqlStrings.dbToUse = _dbCurrentDb;
         }
@@ -623,7 +623,7 @@ namespace EFDataTransfer
             var twWorkOrderLines = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrderLines);
             var subscriptionServices = new DataTable();
             subscriptionServices.Columns.AddRange(new DataColumn[] {
-                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("IsPermanent", typeof(int)),
                 new DataColumn("SubscriptionId", typeof(int)),
                 new DataColumn("ServiceId", typeof(int)),
                 new DataColumn("PeriodNo", typeof(int))
@@ -652,7 +652,7 @@ namespace EFDataTransfer
                                 if (occasion == "o10000")
                                 {
                                     for (int j = 1; j < 8; j++)
-                                        subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], j });
+                                        subscriptionServices.Rows.Add(new object[] { 1, row["workorder_id"], row["sId"], j });
 
                                     break;
                                 }
@@ -660,7 +660,7 @@ namespace EFDataTransfer
                                 {
                                     int periodNo = int.Parse(occasion[occasion.Length - 1].ToString());
 
-                                    subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], periodNo });
+                                    subscriptionServices.Rows.Add(new object[] { 1, row["workorder_id"], row["sId"], periodNo });
                                 }
                             }
                         }
@@ -669,12 +669,12 @@ namespace EFDataTransfer
                 else
                 {
                     for (int j = 1; j < 8; j++)
-                        subscriptionServices.Rows.Add(new object[] { 3, row["workorder_id"], row["sId"], j });
+                        subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], j });
                 }
             }
 
             var mappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
                 new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
                 new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
@@ -700,7 +700,7 @@ namespace EFDataTransfer
 
             var subscriptionServices = new DataTable();
             subscriptionServices.Columns.AddRange(new DataColumn[] {
-                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("IsPermanent", typeof(int)),
                 new DataColumn("SubscriptionId", typeof(int)),
                 new DataColumn("ServiceId", typeof(int)),
                 new DataColumn("PeriodNo", typeof(int))
@@ -723,13 +723,13 @@ namespace EFDataTransfer
                     subscriptionId = rowSubscriptionId;
                 }
 
-                subscriptionServices.Rows.Add(new object[] { 0, rowSubscriptionId, 28, periodNo });
+                subscriptionServices.Rows.Add(new object[] { 1, rowSubscriptionId, 28, periodNo });
 
                 periodNo++;
             }
 
             var mappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
                 new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
                 new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
@@ -755,7 +755,7 @@ namespace EFDataTransfer
 
             var subscriptionServices = new DataTable();
             subscriptionServices.Columns.AddRange(new DataColumn[] {
-                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("IsPermanent", typeof(int)),
                 new DataColumn("SubscriptionId", typeof(int)),
                 new DataColumn("ServiceId", typeof(int)),
                 new DataColumn("PeriodNo", typeof(int))
@@ -780,7 +780,7 @@ namespace EFDataTransfer
             }
 
             var mappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
                 new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
                 new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
