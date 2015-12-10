@@ -16,7 +16,6 @@ namespace EFDataTransfer
 
         public Transfer()
         {
-            //_dataAccess = new DataAccess("Data Source=tcp:x4erdsx1dl.database.windows.net,1433;Initial Catalog=putsa_db;User ID=efits@x4erdsx1dl;Password=Kn4ck3br0d");
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
             //Proddatabasen
             //dbCurrentDB = "eriks_test_db";
@@ -1079,8 +1078,8 @@ namespace EFDataTransfer
 
         public void FixRUT()
         {
-            _dataAccess.NonQuery(SqlStrings.UpdateRUTByMainTWContacts);
             _dataAccess.NonQuery(SqlStrings.UpdateRUTOnContacts);
+            _dataAccess.NonQuery(SqlStrings.UpdateRUTByMainTWContacts);
             
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", dbCurrentDB));
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));

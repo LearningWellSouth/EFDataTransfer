@@ -1459,7 +1459,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot = 0 THEN
+                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot IN (0, 1) THEN
                             CASE WHEN twc.taxreduction_percentage = 0 THEN 1 ELSE twc.taxreduction_percentage / 100 END
                         ELSE 0 END
                     FROM {0}.dbo.Customers c
@@ -1483,7 +1483,7 @@ namespace EFDataTransfer
 	                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
 	                    JOIN eriks_migration.dbo.TW_clients twcons ON twcons.mother_id = twc.id
 	                    JOIN {0}.dbo.Contacts con ON con.PersonId = p.Id
-	                    WHERE twc.full_reduction_pot = 0
+	                    WHERE twc.full_reduction_pot IN (0, 1)
                     )
                 ", dbCurrentDB);
             }
