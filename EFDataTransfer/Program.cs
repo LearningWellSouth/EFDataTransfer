@@ -115,9 +115,6 @@ namespace EFDataTransfer
 
                 foreach (tableProperty curTable in allTables)
                 {
-                    if (curTable.tableName == "CleaningObjects" && allTables.FirstOrDefault(x => x.tableName == "PostalAddressModels") == null)
-                        continue;
-
                     //Töm tabellen först
                         if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                     {
@@ -197,7 +194,9 @@ namespace EFDataTransfer
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message+@"\n\r"+ex.StackTrace);
+                var errorMessage = ex.Message+"\n\r"+ex.StackTrace;
+                ErrorLogger.PostError(errorMessage);
+                Console.WriteLine(errorMessage);
             }
 
             Console.WriteLine("Done. Press any key to quit.");
