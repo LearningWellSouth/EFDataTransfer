@@ -84,6 +84,7 @@ namespace EFDataTransfer
             //"postalcode_fixed" is used by other "fixers" in late migration
             if(parsedAddress.GetPostalCodeAsInteger() > 0)
                 _dataAccess.NonQuery(SqlStrings.PostalCodeFixUpdate(Convert.ToInt32(clientRecord["id"]), parsedAddress.GetPostalCodeAsInteger())); ;
+            if(Convert.ToString(clientRecord["deleted"]) == "Y") continue;
 
             int postalCodeModelId = 0;
             if (cache.ContainsKey(parsedAddress.GetKeyString()))
