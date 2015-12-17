@@ -557,18 +557,14 @@ namespace EFDataTransfer
             subscriptions.Columns.AddRange(new DataColumn[] {
                 new DataColumn("Id", typeof(int)),
                 new DataColumn("CleaningObjectId", typeof(int)),
-                new DataColumn("IsInactive", typeof(bool))
+                new DataColumn("IsInactive", typeof(bool)),
+                new DataColumn("ActiveChangedDate", typeof(DateTime))
             });
 
             
             foreach (DataRow row in twWorkOrders.Rows)
             {
-                //int caId = Convert.ToInt32(row["caId"]);
-
-                //if (caId != prevId)
-                    subscriptions.Rows.Add(new object[] { row["woId"], row["caId"], row["woIsInactive"] });
-
-                //prevId = caId;
+                subscriptions.Rows.Add(new object[] { row["woId"], row["caId"], row["woIsInactive"], DateTime.Now });
             }
 
             _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Subscriptions", subscriptions, true, null);

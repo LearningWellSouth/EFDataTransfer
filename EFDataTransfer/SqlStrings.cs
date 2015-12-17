@@ -312,10 +312,11 @@ namespace EFDataTransfer
             {
                 return @"
                     SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Customers ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Customers (Id, PersonId, IsInactive, IsInvoicable, InvoiceMethod, IsCreditBlocked, PaymentTerms)
+                    INSERT INTO " + dbCurrentDB + @".dbo.Customers (Id, PersonId, IsInactive, IsInvoicable, InvoiceMethod, IsCreditBlocked, PaymentTerms, CreatedDate)
                     SELECT DISTINCT clientnbr AS Id, TW_clients.Id AS PersonId, 0 AS IsInactive, 1 AS IsInvoicable, 
                         CASE WHEN TW_clients.paymenttype = 4 THEN 1 WHEN TW_clients.paymenttype = 7 THEN 2 WHEN TW_clients.paymenttype = 2 THEN 0 ELSE 3 END AS InvoiceMethod, 
-                        0 AS IsCreditBlocked, paymentterms
+                        0 AS IsCreditBlocked, paymentterms,
+                        CASE WHEN TW_clients.ctime IS NOT NULL THEN TW_clients.ctime WHEN TW_clients.mtime IS NOT NULL THEN TW_clients.mtime ELSE GETDATE() END AS CreatedDate
                     FROM eriks_migration.dbo.TW_clients
                     INNER JOIN eriks_migration.dbo.TW_clientaddresses cli ON TW_clients.id = cli.client_id
                     WHERE is_invoice = 'Y' AND eriks_migration.dbo.TW_clients.deleted = 'N' AND mother_id = 0
