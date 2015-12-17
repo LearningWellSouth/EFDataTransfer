@@ -759,14 +759,14 @@ namespace EFDataTransfer
 
 
         public const string SelectTWAddresses
-                = @"WITH deletedCustomers AS (
-                        SELECT Id FROM eriks_migration.dbo.TW_clients WHERE deleted = 'Y'
+                = @"WITH deletedCustomersAndContacts AS (
+                        SELECT Id FROM eriks_migration.dbo.TW_clients WHERE deleted = 'Y' OR mother_id != 0
                         UNION
                         SELECT 0
                     )
                     SELECT deleted, id, [address], co_address, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id
                     FROM eriks_migration.dbo.TW_clientaddresses 
-                    WHERE client_id not in (SELECT Id FROM deletedCustomers)";
+                    WHERE client_id not in (SELECT Id FROM deletedCustomersAndContacts)";
 
       public static string SelectTWServices
         {
