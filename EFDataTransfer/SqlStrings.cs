@@ -876,7 +876,6 @@ namespace EFDataTransfer
         {
             get
             {
-                // wol.deleted = 'N' tillagt 20151111
                 return @"SELECT s.Id AS ServiceId, wol.unit_price, twS.price_per_unit, ca.id AS caId, wol.[description] AS wolDesc FROM eriks_migration.dbo.TW_workorderlines wol
                         JOIN eriks_migration.dbo.TW_services twS ON wol.service_id = twS.id
                         JOIN " + dbCurrentDB + @".dbo.[Services] s ON twS.id = s.Id
@@ -885,24 +884,11 @@ namespace EFDataTransfer
                         WHERE --ca.is_delivery = 'Y' AND 
                         ca.deleted = 'N'
                         AND wo.deleted = 'N'
-                        AND wo.[status] <> 6
+                        AND wo.[status] NOT IN (4, 6)
                         AND postalcode_fixed IS NOT NULL
                         AND wol.interlude_num IS NOT NULL
                         AND wol.deleted = 'N'
                     ";
-
-//                return @"SELECT cli.clientnbr, ca.[address], ca.postalcode_fixed, ca.city, s.Id AS ServiceId, wol.unit_price, twS.price_per_unit FROM TW_workorderlines wol
-//                    JOIN TW_services twS ON wol.service_id = twS.id
-//                    JOIN [Services] s ON twS.Name = s.Name
-//                    JOIN TW_workorders wo ON wol.workorder_id = wo.id
-//                    JOIN TW_clientaddresses ca ON wo.delivery_clientaddress_id = ca.id
-//                    JOIN TW_clients cli ON ca.client_id = cli.id
-//                    WHERE ca.is_delivery = 'Y'
-//                    AND cli.deleted = 'N'
-//                    AND ca.deleted = 'N'
-//                    AND wo.deleted = 'N'
-//                    AND wo.[status] <> 6
-//                    AND postalcode_fixed IS NOT NULL";
             }
         }
 

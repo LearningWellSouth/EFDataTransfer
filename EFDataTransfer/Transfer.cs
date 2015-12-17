@@ -771,7 +771,7 @@ namespace EFDataTransfer
                     subscriptionId = rowSubscriptionId;
                 }
                 
-                subscriptionServices.Rows.Add(new object[] { 0, rowSubscriptionId, 28, periodNo });
+                subscriptionServices.Rows.Add(new object[] { 1, rowSubscriptionId, 28, periodNo });
 
                 periodNo++;
             }
@@ -792,17 +792,19 @@ namespace EFDataTransfer
         {
             string sqlTemp;
 
-            sqlTemp="SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.TableLocks ON INSERT INTO " + _dbCurrentDb + ".dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.TableLocks OFF";
+            sqlTemp = string.Format(@"SET IDENTITY_INSERT {0}.dbo.TableLocks ON 
+                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
+                SET IDENTITY_INSERT {0}.dbo.TableLocks OFF", _dbCurrentDb);
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.TableLocks").Rows.Count == 0)
-                _dataAccess.NonQuery(
-                    @sqlTemp);
+                _dataAccess.NonQuery(@sqlTemp);
 
-            sqlTemp = "SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers ON INSERT INTO " + _dbCurrentDb + ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1) SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers OFF";
+            sqlTemp = "SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers ON INSERT INTO " + _dbCurrentDb + 
+                ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1000000) SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers OFF";
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.NextInvoiceNumbers").Rows.Count == 0)
-                _dataAccess.NonQuery(
-                    @sqlTemp);
+                _dataAccess.NonQuery(@sqlTemp);
         }
 
         private void NotesAndIssues()
