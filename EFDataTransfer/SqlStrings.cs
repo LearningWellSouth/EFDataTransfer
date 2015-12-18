@@ -884,7 +884,7 @@ namespace EFDataTransfer
                         WHERE --ca.is_delivery = 'Y' AND 
                         ca.deleted = 'N'
                         AND wo.deleted = 'N'
-                        AND wo.[status] NOT IN (4, 6)
+                        AND wo.[status] <> 6
                         AND postalcode_fixed IS NOT NULL
                         AND wol.interlude_num IS NOT NULL
                         AND wol.deleted = 'N'
@@ -981,15 +981,17 @@ namespace EFDataTransfer
             }
         }            
 
-        public static string SelectTwNoteAndCleaningObjectId(int id)
+
+
+        public static string SelectTwNoteAndCleaningObjectId(int id, bool before)
         {
             return string.Format(@"
                 SELECT content, header, co.Id AS coId
                 FROM eriks_migration.dbo.TW_notes notes
                 JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                 JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                WHERE notes.table_id = {1} AND notes.tag_type LIKE '%uppdrag_under%'
-            ", dbCurrentDB, id);
+                WHERE notes.table_id = {1} AND notes.tag_type LIKE '%{2}%'
+            ", dbCurrentDB, id, before ? "uppdrag_fore" : "uppdrag_under");
         }
 
         public static string SelectTwIssues
