@@ -89,7 +89,7 @@ namespace EFDataTransfer
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams", truncFlag = false, transferData = true }); // Also connects schedules to postalcodes
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Teams", truncFlag = false, transferData = true }); // Also connects schedules to postalcodes
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories", truncFlag = false, transferData = true });
 
@@ -104,14 +104,12 @@ namespace EFDataTransfer
 
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
-                //////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users", truncFlag = false, transferData = true }); // Connected to workers
-                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                ////Kopplingen av arbetslag till användare funkar inte, löses manuellt
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Users", truncFlag = false, transferData = true }); // Connected to workers
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
-                
-                transferrer.TransferNewEmployees(); // När en ny användare kommer in i systemet kraschar migreringen om den inte läggs in
 
+
+                transferrer.CreateUsersForEmployees();
                 foreach (tableProperty curTable in allTables)
                 {
                     //Töm tabellen först
@@ -145,10 +143,6 @@ namespace EFDataTransfer
                 transferrer.AddSchedulesToCleaningObjectsWithout();
 
 
-
-
-
-
                 //// Om hemadresser inte kommit över, kör detta:
                 ////--insert into " + dbCurrentDB + ".dbo.PersonPostalAddressModels (PostalAddressModelId, PersonId, [Type])
                 ////--select distinct PostalAddressModelId, PersonId, 4
@@ -179,11 +173,6 @@ namespace EFDataTransfer
                Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
                Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
                */
-
-
-
-
-
 
 
                 transferrer.FixRUT();

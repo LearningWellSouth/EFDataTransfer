@@ -48,21 +48,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string CreateUsersForNewWorkers
-        {
-            get
-            {
-                return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Users ON
-                    INSERT INTO {0}.dbo.Users (Id, Username, [Permissions])
-                    SELECT id, firstname + ' ' + lastname AS Username, 96 AS [Permissions] 
-                    FROM eriks_migration.dbo.TW_employees
-                    WHERE deleted = 'N' AND role_id = 1
-                    AND id NOT IN (SELECT Id FROM {0}.dbo.Users)
-                    SET IDENTITY_INSERT {0}.dbo.Users OFF", dbCurrentDB);
-            }
-        }
-
         public static string GetCleaningObjectsUnconnectedToTeams
         {
             get
@@ -321,35 +306,6 @@ namespace EFDataTransfer
                     INNER JOIN eriks_migration.dbo.TW_clientaddresses cli ON TW_clients.id = cli.client_id
                     WHERE is_invoice = 'Y' AND eriks_migration.dbo.TW_clients.deleted = 'N' AND mother_id = 0
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Customers OFF";
-            }
-        }
-
-        public static string TransferEmployees
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
-                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
-                    FROM eriks_migration.dbo.TW_employees
-                    WHERE deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
-            }
-        }
-
-        public static string TransferNewEmployees
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
-                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
-                    FROM eriks_migration.dbo.TW_employees e
-                    WHERE deleted = 'N'
-                    AND e.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Users)
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
             }
         }
 
@@ -1147,15 +1103,6 @@ namespace EFDataTransfer
 					JOIN eriks_migration.dbo.TW_resources_employees emp ON w.UserId = emp.employee_id
 					JOIN " + dbCurrentDB + @".dbo.Teams t ON t.VehicleId = emp.resource_id
                 ";
-            }
-        }
-
-        public static string CreateUsersForTeams
-        {
-            get
-            {
-                return @"INSERT INTO " + dbCurrentDB + ".dbo.Users (Username, [Permissions], TeamId) SELECT CONCAT(REPLACE(Name, ' ', ''), '@eriksfonsterputs.se'), 128, Id FROM " + 
-                    dbCurrentDB + ".dbo.Teams";
             }
         }
 
