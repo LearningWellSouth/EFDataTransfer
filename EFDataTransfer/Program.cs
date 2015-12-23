@@ -115,12 +115,12 @@ namespace EFDataTransfer
                     //Töm tabellen först
                         if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                     {
-                        Console.WriteLine("truncating {0}...", curTable.tableName);
+                        ErrorLogger.PostInfo(string.Format("truncating {0}...", curTable.tableName));
                         transferrer.TruncateTable(curTable.tableName);
                     }
                     else
                     {
-                        Console.WriteLine("Deleting all records in {0}...", curTable.tableName);
+                        ErrorLogger.PostInfo(string.Format("Deleting all records in {0}...", curTable.tableName));
                         transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                     }
                     //Kör transfer
