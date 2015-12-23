@@ -640,7 +640,7 @@ namespace EFDataTransfer
                                 {
                                     int periodNo = int.Parse(occasion[occasion.Length - 1].ToString());
                                     if (periods[periodNo - 1]) _logger.PostError("duplicate schedule occation= " + occasion + ", workorder_id= " + row["workorder_id"] + ", sid=" + row["sId"]);
-                                    else
+                                    //else
                                     periods[periodNo - 1] = true;
                                 }
                             }
