@@ -24,6 +24,7 @@ namespace EFDataTransfer
             //dbCurrentDB = "putsa_db";
 
             SqlStrings.dbToUse = dbCurrentDB;
+
         }
 
         private void Addresses()
