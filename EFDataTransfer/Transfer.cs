@@ -810,6 +810,7 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.TransferCustomerEconomyNotes);
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectEconomyNotes);
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectFieldNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferCustomerFieldNotes);
             _dataAccess.NonQuery(SqlStrings.TransferReclamationNotes);
             _dataAccess.NonQuery(SqlStrings.TransferDamageReports);
             _dataAccess.NonQuery(SqlStrings.TransferTerminationNotes);
