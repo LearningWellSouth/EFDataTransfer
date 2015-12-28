@@ -319,7 +319,7 @@ namespace EFDataTransfer
                         VisibleOnInvoice, IsSalarySetting, SortOrder, IsDefault, 
                         SubCategoryId)
                     SELECT id AS Id, 
-	                    CASE category_id
+                        CASE category_id
 		                    WHEN 1 THEN 1
 		                    WHEN 2 THEN 2
 		                    WHEN 3 THEN 2
@@ -331,6 +331,7 @@ namespace EFDataTransfer
 		                    WHEN 10 THEN 5
 		                    WHEN 11 THEN 7
 		                    WHEN 12 THEN 6
+                            WHEN 13 THEN 2
 	                    END AS Category, 
 	                    name AS Name, 
 	                    CASE account_id
@@ -368,6 +369,7 @@ namespace EFDataTransfer
 		                    WHEN name = 'Textrad' THEN 9
 		                    WHEN category_id = 11 THEN 8
 		                    WHEN category_id = 12 THEN 8
+                            WHEN category_id = 13 THEN 5
 		                    END AS SubCategoryId
 	                    FROM eriks_migration.dbo.TW_services WHERE deleted = 'N'
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.[Services] OFF";
