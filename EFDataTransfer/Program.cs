@@ -174,18 +174,15 @@ namespace EFDataTransfer
                  * i det nya systemet
                  */
                 /*
-               Console.WriteLine("To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. ");
-               Console.WriteLine("If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%");
-               Console.WriteLine("Else if full_reduction_pot == 2 then RUT == 0");
-               Console.WriteLine("Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)");
-               */
 
 
 
-
-
-
-
+                   To set RUT, check TW_clients.full_reduction_pot and TW_clients.taxreduction_percentage and update manually. "
+                   If full_reduction_pot == 0 then check percentage, if percentage == 0 then RUT == 100%"
+                   Else if full_reduction_pot == 2 then RUT == 0"
+                   Else if full_reduction_pot == 1 then RUT should be activated after years end (new feature)"
+                */
+               
                 transferrer.FixRUT();
 
                 transferrer.AddContactsWhereMissing();

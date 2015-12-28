@@ -26,8 +26,8 @@ namespace EFDataTransfer
             //    _dataAccess.ValidateConnectionSettings();
             //#else
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
-                //dbCurrentDB = "eriks_dev_db";
-                _dbCurrentDb = "putsa_db";
+            //_dbCurrentDb = "eriks_dev_db";
+            _dbCurrentDb = "putsa_db_dirty";
             //#endif
 
             SqlStrings.dbToUse = _dbCurrentDb;
@@ -110,7 +110,7 @@ namespace EFDataTransfer
                 if (postalCodeModelId == 0)
                 {
                     postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress);
-                    cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea(parsedAddress, postalCodeModelId));
+                    cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea());
                 }
 
                 var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
