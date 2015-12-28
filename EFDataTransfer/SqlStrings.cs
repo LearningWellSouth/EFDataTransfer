@@ -18,7 +18,23 @@ namespace EFDataTransfer
             {
                dbCurrentDB = value; 
             }
+        }
 
+        public static string ConnectUnconnectedCleaningObjectsToTeams
+        {
+            get
+            {
+                return string.Format(@"UPDATE {0}.dbo.CleaningObjects SET TeamId = t.Id
+                    FROM eriks_migration.dbo.TW_workareas wa
+                    JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id
+                    JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
+                    JOIN " + dbCurrentDB + ".dbo.Vehicles v ON v.Notes = res.name " +
+                    "JOIN " + dbCurrentDB + @".dbo.Teams t ON t.VehicleId = v.Id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = ca.id
+                    WHERE ca.deleted = 'N'
+                    AND wa.deleted = 'N'
+                    AND ca.postalcode_fixed IS NOT NULL", dbCurrentDB);
+            }
         }
 
         public static string CreateTeamsAndConnectToVehicles
@@ -30,6 +46,101 @@ namespace EFDataTransfer
                     SELECT name, 2, id FROM eriks_migration.dbo.TW_resources
                 ";
             }
+        }
+
+        public static string CreateUsersForNewWorkers
+        {
+            get
+            {
+                return string.Format(@"
+                    SET IDENTITY_INSERT {0}.dbo.Users ON
+                    INSERT INTO {0}.dbo.Users (Id, Username, [Permissions])
+                    SELECT id, firstname + ' ' + lastname AS Username, 96 AS [Permissions] 
+                    FROM eriks_migration.dbo.TW_employees
+                    WHERE deleted = 'N' AND role_id = 1
+                    AND id NOT IN (SELECT Id FROM {0}.dbo.Users)
+                    SET IDENTITY_INSERT {0}.dbo.Users OFF", dbCurrentDB);
+            }
+        }
+
+        public static string GetCleaningObjectsUnconnectedToTeams
+        {
+            get
+            {
+                return string.Format(@"
+                        SELECT t.*, wa.*
+                        FROM eriks_migration.dbo.TW_workareas wa
+                        JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id
+                        JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
+                        JOIN {0}.dbo.Vehicles v ON v.Notes = res.name
+                        JOIN {0}.dbo.Teams t ON t.VehicleId = v.Id
+                        JOIN {0}.dbo.CleaningObjects co ON co.Id = ca.id
+                        WHERE ca.postalcode_fixed IS NOT NULL
+                        AND co.TeamId IS NULL
+                    ", dbCurrentDB);
+            }                
+        }
+
+        public static string GetCleaningObjectsStillUnconnectedToTeam
+        {
+            get
+            {
+                return string.Format(@"SELECT Id, PostalAddressModelId FROM {0}.dbo.CleaningObjects WHERE TeamId IS NULL", dbCurrentDB);
+            }
+        }
+
+        public static string GetTeamIdForUnconnectedCleaningObject(int pamId)
+        {
+            return string.Format(@"
+                SELECT TOP(1) TeamId FROM {0}.dbo.CleaningObjects 
+                WHERE PostalAddressModelId = {1}
+                AND TeamId IS NOT NULL", dbCurrentDB, pamId);
+        }
+
+        public static string SetTeamIdOnCleaningObject(int coId, int teamId)
+        {
+            return string.Format(@"UPDATE {0}.dbo.CleaningObjects SET TeamId = {1} WHERE Id = {2}", dbCurrentDB, teamId, coId);
+        }
+
+        public static string GetTeamIdFromPcmsForUnconnectedCleaningObject(int postalAddressModelId)
+        {
+            return string.Format(@"
+                SELECT TOP (1) co.TeamId FROM {0}.dbo.PostalCodeModels pcm
+                JOIN {0}.dbo.PostalAddressModels pam1 ON pam1.PostalCodeModelId = pcm.Id
+                JOIN {0}.dbo.PostalAddressModels pam2 ON pam2.PostalCodeModelId = pcm.Id
+                JOIN {0}.dbo.CleaningObjects co ON co.PostalAddressModelId = pam2.Id
+                WHERE pam1.Id = {1} 
+                AND co.TeamId IS NOT NULL
+            ", dbCurrentDB, postalAddressModelId);
+        }
+
+        public static string GetTeamIdFromSamePostalCodeForUnconnectedCo(int coId)
+        {
+            return string.Format(@"
+                SELECT TOP(1) co.TeamId FROM {0}.dbo.CleaningObjects co WHERE PostalAddressModelId IN(
+                    SELECT Id FROM {0}.dbo.PostalAddressModels WHERE PostalCodeModelId IN (
+                        SELECT pcm1.Id FROM {0}.dbo.PostalCodeModels pcm1
+                        JOIN {0}.dbo.PostalCodeModels pcm2 ON pcm1.PostalCode = pcm2.PostalCode
+                        JOIN {0}.dbo.PostalAddressModels pam1 ON pam1.PostalCodeModelId = pcm2.Id
+                        JOIN {0}.dbo.CleaningObjects co ON co.PostalAddressModelId = pam1.Id
+                        WHERE co.Id = {1}
+                    )
+                ) AND co.TeamId IS NOT NULL", dbCurrentDB, coId);
+        }
+
+        public static string GetTeamIdFromSameCityForUnconnCo(int coId)
+        {
+            return string.Format(@"
+                SELECT DISTINCT co.TeamId FROM {0}.dbo.CleaningObjects co WHERE PostalAddressModelId IN (		
+	                SELECT Id FROM {0}.dbo.PostalAddressModels WHERE PostalCodeModelId IN (
+		                SELECT pcm1.Id FROM {0}.dbo.PostalCodeModels pcm1
+		                JOIN {0}.dbo.PostalCodeModels pcm2 ON pcm1.City = pcm2.City
+		                JOIN {0}.dbo.PostalAddressModels pam1 ON pam1.PostalCodeModelId = pcm2.Id
+		                JOIN {0}.dbo.CleaningObjects co ON co.PostalAddressModelId = pam1.Id
+		                WHERE co.Id = 2601
+	                )
+                ) AND TeamId IS NOT NULL
+            ", dbCurrentDB, coId);
         }
 
         public static string InsertAccounts
@@ -83,10 +194,10 @@ namespace EFDataTransfer
         }
 
         public static string InsertIntoPostalCodeModels(
-            string postalCode, string postalCodeType, string address, string streetNoLowest, string streetNoHighest, string city, string typeOfPlacement)
+            string postalCode, string postalCodeType, string address, int streetNoLowest, int streetNoHighest, string city, string typeOfPlacement)
         {
             return string.Format(@"INSERT INTO " + dbCurrentDB + @".dbo.PostalCodeModels (PostalCode, PostalCodeType, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, IsNotValid)
-                OUTPUT INSERTED.Id VALUES ({0}, '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
+                OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', 1)", 
                 postalCode, postalCodeType, address, streetNoLowest, streetNoHighest, city, typeOfPlacement);
         }
 
@@ -99,8 +210,8 @@ namespace EFDataTransfer
         {
             get
             {
-                return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.ServiceGroups ([From], [To], Name) OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '2015')", 
-                    DateTime.Now.Year.ToString() + "-1-1", DateTime.Now + new TimeSpan(365, 0, 0, 0));
+                return string.Format("INSERT INTO " + dbCurrentDB + ".dbo.ServiceGroups ([From], [To], Name) OUTPUT INSERTED.Id VALUES ('{0}', '{1}', '{2}')", 
+                    DateTime.Now.Year.ToString() + "-1-1", DateTime.Now.Year.ToString() + "-12-31", DateTime.Now.Year);
             }
         }
 
@@ -201,10 +312,11 @@ namespace EFDataTransfer
             {
                 return @"
                     SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Customers ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Customers (Id, PersonId, IsInactive, IsInvoicable, InvoiceMethod, IsCreditBlocked, PaymentTerms)
+                    INSERT INTO " + dbCurrentDB + @".dbo.Customers (Id, PersonId, IsInactive, IsInvoicable, InvoiceMethod, IsCreditBlocked, PaymentTerms, CreatedDate)
                     SELECT DISTINCT clientnbr AS Id, TW_clients.Id AS PersonId, 0 AS IsInactive, 1 AS IsInvoicable, 
                         CASE WHEN TW_clients.paymenttype = 4 THEN 1 WHEN TW_clients.paymenttype = 7 THEN 2 WHEN TW_clients.paymenttype = 2 THEN 0 ELSE 3 END AS InvoiceMethod, 
-                        0 AS IsCreditBlocked, paymentterms
+                        0 AS IsCreditBlocked, paymentterms,
+                        CASE WHEN TW_clients.ctime IS NOT NULL THEN TW_clients.ctime WHEN TW_clients.mtime IS NOT NULL THEN TW_clients.mtime ELSE GETDATE() END AS CreatedDate
                     FROM eriks_migration.dbo.TW_clients
                     INNER JOIN eriks_migration.dbo.TW_clientaddresses cli ON TW_clients.id = cli.client_id
                     WHERE is_invoice = 'Y' AND eriks_migration.dbo.TW_clients.deleted = 'N' AND mother_id = 0
@@ -222,6 +334,21 @@ namespace EFDataTransfer
                     SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
                     FROM eriks_migration.dbo.TW_employees
                     WHERE deleted = 'N'
+                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
+            }
+        }
+
+        public static string TransferNewEmployees
+        {
+            get
+            {
+                return @"
+                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
+                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
+                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
+                    FROM eriks_migration.dbo.TW_employees e
+                    WHERE deleted = 'N'
+                    AND e.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Users)
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
             }
         }
@@ -266,11 +393,11 @@ namespace EFDataTransfer
                         0 AS CalcArea,
                         0 AS CalcNone,
                         0 AS [From],
-                        0 AS Circa,
+                        1 AS Circa,
 	                    CASE WHEN visible_invoice = 'Y' THEN 1 ELSE 0 END AS VisibleOnInvoice,
 	                    CASE WHEN servicetype_id IN (1, 3) THEN 1 ELSE 0 END AS IsSalarySetting,
 	                    id AS SortOrder,
-	                    CASE WHEN name = 'BV - Grundpris' THEN 1 ELSE 0 END AS IsDefault,
+	                    CASE WHEN name = 'BV - Grundpris' OR name = 'Inställelse- o adm.avgift' THEN 1 ELSE 0 END AS IsDefault,
 	                    CASE 
 		                    WHEN name = 'BV - Grundpris' THEN 10
 		                    WHEN category_id = 1 THEN 2
@@ -321,9 +448,9 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, [Private])
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
+                    
+                    INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], [Priority], StartDate, FinishedDate, CustomerId, IssueType, [Private])
+                    SELECT header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
                         CASE WHEN ISDATE(content) = 1 AND CONVERT(DATETIME, content) > n.ctime THEN content 
 		                    WHEN n.ctime IS NOT NULL THEN n.ctime ELSE n.ctime END AS StartDate,
                         CASE WHEN ISDATE(content) = 1  THEN content 
@@ -333,7 +460,7 @@ namespace EFDataTransfer
                     JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
                     JOIN {0}.dbo.Customers c on c.Id = cli.clientnbr
                     WHERE n.tag_type LIKE '%anteckning%' AND n.table_name LIKE '%clients%'
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF
+                    
                 ", dbCurrentDB);
             }
         }
@@ -408,9 +535,9 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CustomerId, CreatorId, Private)
-                    SELECT n.id AS Id, header AS Title, content AS [Description], 
+                    
+                    INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], [Priority], StartDate, FinishedDate, IssueType, CustomerId, CreatorId, Private)
+                    SELECT  header AS Title, content AS [Description], 
 	                    CASE WHEN n.closed = 'N' THEN 2 ELSE 4 END AS [Status], 0 AS [Priority], 
 						CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS StartDate, 
                         CASE WHEN n.mtime IS NOT NULL THEN n.mtime ELSE n.ctime END AS FinishedDate, 
@@ -419,8 +546,7 @@ namespace EFDataTransfer
                     FROM eriks_migration.dbo.TW_notes n
                     JOIN eriks_migration.dbo.TW_clients cli ON n.table_id = cli.id
                     JOIN {0}.dbo.Customers c ON c.Id = cli.clientnbr
-                    WHERE table_name LIKE '%clients%' AND n.tag_type LIKE '%ekonomi%' 
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF", dbCurrentDB);
+                    WHERE table_name LIKE '%clients%' AND n.tag_type LIKE '%ekonomi%' ", dbCurrentDB);
             }
         }
 
@@ -448,9 +574,8 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Issues ON
-                    INSERT INTO {0}.dbo.Issues (Id, Title, [Description], [Status], StartDate, FinishedDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
-                    SELECT notes.id AS Id, notes.header AS Title, content AS [Description], 4 AS [Status],
+                                     INSERT INTO {0}.dbo.Issues ( Title, [Description], [Status], StartDate, FinishedDate, CreatorId, IssueType, CleaningObjectId, Private, Priority)
+                    SELECT  notes.header AS Title, content AS [Description], 4 AS [Status],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
 						CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
 	                    created_by_id AS CreatorId, 2 AS IssueType, wo.delivery_clientaddress_id AS CleaningObjectId, 0 AS Private, 0 AS Priority
@@ -458,7 +583,8 @@ namespace EFDataTransfer
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
                     WHERE table_name LIKE '%workorders%' AND notes.tag_type LIKE '%bestallning%'
-                    SET IDENTITY_INSERT {0}.dbo.Issues OFF",
+                    
+                   ",
                 dbCurrentDB);
             }
         }
@@ -551,6 +677,25 @@ namespace EFDataTransfer
             }
         }
 
+        // Nytt 2015-11-13
+        public static string InsertAdminFeePriceMods
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.CleaningObjectPrices (Modification, CleaningObjectId, ServiceId, ServiceGroupId)
+                    SELECT CASE WHEN twc.invoicefee = 28 OR twc.invoicefee = 1 THEN 1 ELSE 0 END AS Modification, 
+	                    co.Id AS CleaningObjectId, 
+                        28 AS ServiceId, 
+	                    (SELECT Max(Id) FROM {0}.dbo.ServiceGroups) AS ServiceGroupId
+                    FROM eriks_migration.dbo.TW_clients AS twc
+                    JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = twc.clientnbr
+                    WHERE twc.deleted = 'N'
+                    AND twc.mother_id = 0
+                ", dbCurrentDB);
+            }
+        }
+
         #endregion
 
         #region select
@@ -574,7 +719,7 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement FROM " + dbCurrentDB + @".dbo.PostalCodeModels";
+                return @"SELECT Id, PostalCode, PostalAddress, StreetNoLowest, StreetNoHighest, City, TypeOfPlacement, PostalCodeType FROM " + dbCurrentDB + @".dbo.PostalCodeModels";
                     // WHERE PostalCode IN (SELECT postalcode_fixed FROM eriks_migration.dbo.TW_clientaddresses)"; Kan inte köra detta pga att landskoder tillkommit i postnr
             }
         }
@@ -614,63 +759,17 @@ namespace EFDataTransfer
         }
 
 
-        public static string SelectTWAddresses
-        {
-            get
-            {
-                return "SELECT id, [address], co_address, postalcode_fixed, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id " + 
-                    "FROM eriks_migration.dbo.TW_clientaddresses WHERE deleted = 'N'";
-            }
-        }
+        public const string SelectTWAddresses
+                = @"WITH deletedCustomersAndContacts AS (
+                        SELECT Id FROM eriks_migration.dbo.TW_clients WHERE deleted = 'Y' OR mother_id != 0
+                        UNION
+                        SELECT 0
+                    )
+                    SELECT deleted, id, [address], co_address, postalcode, city, latitude, longitude, route_num, is_delivery, is_invoice, client_id, workarea_id
+                    FROM eriks_migration.dbo.TW_clientaddresses 
+                    WHERE client_id not in (SELECT Id FROM deletedCustomersAndContacts)";
 
-        public static string SelectTWCleaningObjectInfoBefore
-        {
-            get
-            {
-//                return @"
-//                SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId FROM eriks_migration.dbo.TW_notes n 
-//                JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-//                WHERE table_name = 'workorders' AND notetype_id = 1 AND n.deleted = 'N' AND important = 'Y' AND 
-//                n.header LIKE 'statusINFO' OR 
-//                n.header LIKE '%KONTAKT%'
-//                ORDER BY table_id
-//                ";
-                return @"
-                    SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND n.important = 'Y' AND n.deleted = 'N' AND content <> '' AND notetype_id = 1 AND n.header LIKE '' 
-                        OR n.header LIKE 'uppdragsbeskrivning%'
-                    ORDER BY wo.delivery_clientaddress_id
-                ";
-            }
-        }
-
-        public static string SelectTWCleaningObjectInfoDuring
-        {
-            get
-            {
-                return @"
-                    SELECT n.content AS Info, wo.delivery_clientaddress_id AS CleaningObjectId
-                    FROM eriks_migration.dbo.TW_notes n 
-                    JOIN eriks_migration.dbo.TW_workorders wo ON n.table_id = wo.id
-                    JOIN " + dbCurrentDB + @".dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                    WHERE table_name = 'workorders' AND n.header LIKE '' AND n.important = 'N' AND n.deleted = 'N' AND content <> '' AND notetype_id = 1
-                    ORDER BY wo.delivery_clientaddress_id
-                ";
-            }
-        }
-        
-        public static string SelectTWClientAddresses
-        {
-            get
-            {
-                return "SELECT id, postalcode FROM eriks_migration.dbo.TW_clientaddresses WHERE postalcode_fixed IS NULL";
-            }
-        }
-
-        public static string SelectTWServices
+      public static string SelectTWServices
         {
             get
             {
@@ -694,16 +793,16 @@ namespace EFDataTransfer
         {
             get
             {
-                return "SELECT wa.resource_id, ca.id AS Id, interlude_num, res.name AS name FROM eriks_migration.dbo.TW_workareas wa " + 
-//                return @"SELECT wa.resource_id, ca.[address], ca.postalcode_fixed, ca.city, cli.clientnbr, interlude_num FROM TW_workareas wa
-                    "JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id " +
-                    //JOIN TW_clients cli ON ca.client_id = cli.id
-                    @"JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
-                    WHERE ca.deleted = 'N' " +
-                    //AND ca.is_delivery = 'Y' " + 
-                    //AND cli.deleted = 'N'
-                    @"AND wa.deleted = 'N'
+                return @"SELECT wa.resource_id, ca.id AS Id, interlude_num, res.name AS name FROM eriks_migration.dbo.TW_workareas wa 
+                    JOIN eriks_migration.dbo.TW_clientaddresses ca on wa.id = ca.workarea_id 
+                    JOIN eriks_migration.dbo.TW_resources res ON res.id = wa.resource_id
+                    WHERE ca.deleted = 'N' 
+                    AND wa.deleted = 'N'
                     AND ca.postalcode_fixed IS NOT NULL";
+                //                return @"SELECT wa.resource_id, ca.[address], ca.postalcode_fixed, ca.city, cli.clientnbr, interlude_num FROM TW_workareas wa
+                //JOIN TW_clients cli ON ca.client_id = cli.id
+                //AND ca.is_delivery = 'Y' " + 
+                //AND cli.deleted = 'N'
             }
         }
 
@@ -726,6 +825,37 @@ namespace EFDataTransfer
                     AND wo.[status] <> 6
                     ORDER BY co.Id DESC, wo.id DESC";
             }
+        }
+
+        // Nytt 2015-11-13
+        public static string SelectAllPeriods(int validForYear)
+        {
+            return string.Format(@"
+                SELECT subs.Id AS SubscriptionId, p.Id
+                FROM {0}.dbo.CleaningObjects co
+                JOIN {0}.dbo.Subscriptions subs ON subs.CleaningObjectId = co.Id
+                JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
+                WHERE p.ValidForYear = {1}
+                ORDER BY subs.Id
+            ", dbCurrentDB, validForYear);
+        }
+
+        public static string SelectAllPeriodsForEmptySubs(int validForYear)
+        {
+            return string.Format(@"
+                SELECT subs.Id AS SubscriptionId, p.Id, co.Id AS CleaningObjectId
+                FROM {0}.dbo.CleaningObjects co
+                JOIN {0}.dbo.Subscriptions subs ON subs.CleaningObjectId = co.Id
+                LEFT JOIN {0}.dbo.SubscriptionServices ss ON ss.SubscriptionId = subs.Id
+                JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                JOIN {0}.dbo.Periods p ON p.ScheduleId = pcm.ScheduleId
+                WHERE p.ValidForYear = {1}
+                AND ss.Id IS NULL
+                ORDER BY subs.Id
+            ", dbCurrentDB, validForYear);
         }
 
         public static string SelectTWWorkOrderLines
@@ -757,20 +887,8 @@ namespace EFDataTransfer
                         AND wo.[status] <> 6
                         AND postalcode_fixed IS NOT NULL
                         AND wol.interlude_num IS NOT NULL
+                        AND wol.deleted = 'N'
                     ";
-
-//                return @"SELECT cli.clientnbr, ca.[address], ca.postalcode_fixed, ca.city, s.Id AS ServiceId, wol.unit_price, twS.price_per_unit FROM TW_workorderlines wol
-//                    JOIN TW_services twS ON wol.service_id = twS.id
-//                    JOIN [Services] s ON twS.Name = s.Name
-//                    JOIN TW_workorders wo ON wol.workorder_id = wo.id
-//                    JOIN TW_clientaddresses ca ON wo.delivery_clientaddress_id = ca.id
-//                    JOIN TW_clients cli ON ca.client_id = cli.id
-//                    WHERE ca.is_delivery = 'Y'
-//                    AND cli.deleted = 'N'
-//                    AND ca.deleted = 'N'
-//                    AND wo.deleted = 'N'
-//                    AND wo.[status] <> 6
-//                    AND postalcode_fixed IS NOT NULL";
             }
         }
 
@@ -813,7 +931,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
 	                    AND header NOT IN ('Uppdragsbeskrivning', '')
 	                    GROUP BY table_id
@@ -845,7 +963,7 @@ namespace EFDataTransfer
         public static string SelectHeaderAndContentIdsFromDuplicateTWNotesForDuring
         {
             get {
-                return @"
+                return string.Format(@"
                     SELECT table_id
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
@@ -854,24 +972,26 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%'
 	                  --  AND header NOT IN ('Uppdragsbeskrivning', '')
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) > 1
-                    )";
+                    )",dbCurrentDB);
             }
         }            
 
-        public static string SelectTwNoteAndCleaningObjectId(int id)
+
+
+        public static string SelectTwNoteAndCleaningObjectId(int id, bool before)
         {
             return string.Format(@"
                 SELECT content, header, co.Id AS coId
                 FROM eriks_migration.dbo.TW_notes notes
                 JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                 JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
-                WHERE notes.id = {1}
-            ", dbCurrentDB, id);
+                WHERE notes.table_id = {1} AND notes.tag_type LIKE '%{2}%'
+            ", dbCurrentDB, id, before ? "uppdrag_fore" : "uppdrag_under");
         }
 
         public static string SelectTwIssues
@@ -920,7 +1040,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = content
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = REPLACE(content, '''', ':')
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
@@ -928,7 +1048,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) = 1
@@ -964,7 +1084,7 @@ namespace EFDataTransfer
             get
             {
                 return string.Format(@"
-                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = CONCAT(header, ' - ', content)
+                    UPDATE {0}.dbo.CleaningObjects SET InfoDuringCleaning = CONCAT(header, ' - ', REPLACE(content, '''', ':'))
                     FROM eriks_migration.dbo.TW_notes notes
                     JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
                     JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
@@ -973,7 +1093,7 @@ namespace EFDataTransfer
                     AND table_id IN (
 	                    SELECT table_id FROM eriks_migration.dbo.TW_notes notes
 	                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-	                    JOIN putsa_db.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
+	                    JOIN {0}.dbo.CleaningObjects co ON co.Id = wo.delivery_clientaddress_id
 	                    WHERE tag_type LIKE '%uppdrag_under%' AND table_name LIKE '%workorders%' 
 	                    GROUP BY table_id
 	                    HAVING COUNT (table_id) = 1
@@ -1034,7 +1154,8 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"INSERT INTO " + dbCurrentDB + ".dbo.Users (Username, [Permissions], TeamId) SELECT Name, 128, Id FROM " + dbCurrentDB + ".dbo.Teams";
+                return @"INSERT INTO " + dbCurrentDB + ".dbo.Users (Username, [Permissions], TeamId) SELECT CONCAT(REPLACE(Name, ' ', ''), '@eriksfonsterputs.se'), 128, Id FROM " + 
+                    dbCurrentDB + ".dbo.Teams";
             }
         }
 
@@ -1062,6 +1183,31 @@ namespace EFDataTransfer
 	                    JOIN eriks_migration.dbo.TW_clients twc on twc.clientnbr = co.CustomerId
 	                    WHERE twc.deleted = 'Y'
                     )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string SetEmptySubscriptionsInactive
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Subscriptions SET IsInactive = 1
+                    WHERE Id IN (
+                        SELECT s.Id FROM {0}.dbo.Subscriptions s
+                        LEFT JOIN {0}.dbo.SubscriptionServices ss ON ss.SubscriptionId = s.Id
+                        WHERE ss.Id IS NULL
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string InsertBaseFees
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.SubscriptionServices (
                 ", dbCurrentDB);
             }
         }
@@ -1107,6 +1253,22 @@ namespace EFDataTransfer
             }
         }
 
+        public static string SetPostalCodeScheduleIds
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.PostalCodeModels SET ScheduleId = sched.Id 
+                    FROM eriks_migration.dbo.TW_workareas wa
+                    JOIN eriks_migration.dbo.TW_clientaddresses ca ON ca.workarea_id = wa.id
+                    JOIN {0}.dbo.CleaningObjects co ON co.Id = ca.id
+                    JOIN {0}.dbo.PostalAddressModels pam ON pam.Id = co.PostalAddressModelId
+                    JOIN {0}.dbo.PostalCodeModels pcm ON pcm.Id = pam.PostalCodeModelId
+                    JOIN {0}.dbo.Schedules sched ON sched.Name LIKE '% ' + wa.interlude_num
+                ", dbCurrentDB);
+            }
+        }
+
         public static string UpdatePostalCodeTeamIds(int postalCodeId, int teamId)
         {
             return string.Format("UPDATE PostalCodes SET TeamId = {0} WHERE Id = {1}", teamId, postalCodeId);
@@ -1131,26 +1293,26 @@ namespace EFDataTransfer
             get
             {
                 return @"
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'FAS 183', Phone = '0739-105501',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 1;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 831', Phone = '0739-105502',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 2;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LTW 037', Phone = '0739-105503',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 3;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MLK 024', Phone = '0739-105504',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 4;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'SHT 308', Phone = '0739-105505',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 5;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 959', Phone = '0739-105506',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 6;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MJJ 685', Phone = '0739-105507', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 7;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DCD 390', Phone = '0739-105508', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 8;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 795', Phone = '0739-105509', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 9;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LWB 564', Phone = '0739-105510', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 10;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 351', Phone = '0739-105511', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 11;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'KTA 390', Phone = '0739-105512', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 12;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 272', Phone = '0739-105513', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 13;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'EEM 176', Phone = '0739-105514', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 14;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 267', Phone = '0739-105515', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 15;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 796', Phone = '0739-105516', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 16;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 891', Phone = '0739-105517', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 17;
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LRD 526', Phone = '0739-105518', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 18;              
-update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 370', Phone = '0739-105519', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 19;
-update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105520', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 20;";
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'FAS 183', Phone = '0739-105501',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 1;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 831', Phone = '0739-105502',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 2;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LTW 037', Phone = '0739-105503',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 3;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MLK 024', Phone = '0739-105504',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 4;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'SHT 308', Phone = '0739-105505',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 5;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 959', Phone = '0739-105506',  Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 6;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MJJ 685', Phone = '0739-105507', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 7;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DCD 390', Phone = '0739-105508', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 8;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'MET 795', Phone = '0739-105509', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 9;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LWB 564', Phone = '0739-105510', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 10;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 351', Phone = '0739-105511', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 11;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'KTA 390', Phone = '0739-105512', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 12;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 272', Phone = '0739-105513', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 13;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'EEM 176', Phone = '0739-105514', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 14;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'OSX 267', Phone = '0739-105515', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 15;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'GXF 796', Phone = '0739-105516', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 16;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'HBZ 891', Phone = '0739-105517', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 17;
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'LRD 526', Phone = '0739-105518', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 18;              
+                    update " + dbCurrentDB + @".dbo.Vehicles set RegNo = 'DPL 370', Phone = '0739-105519', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 19;
+                    update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105520', Brand = 'Ford', VehicleModel = '', ManufacturingYear = 2011 where Id = 20;";
             }
         }
 
@@ -1159,8 +1321,20 @@ update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105
             return string.Format("UPDATE eriks_migration.dbo.TW_clientaddresses SET postalcode_fixed = {0} WHERE id = {1}", postalCode, id);
         }
 
-        #endregion
+        public static string UpdateAllPostalCodeScheduleIds
+        {
+            get
+            {
+                return @"UPDATE X SET X.ToSchedule = X.FromSchedule
+                    FROM (SELECT PCM1.PostalCode,PCM1.ScheduleId As ToSchedule, PCM2.ScheduleId As FromSchedule FROM " + dbCurrentDB + @".dbo.PostalCodeModels PCM1
+                    INNER JOIN  " + dbCurrentDB + @".dbo.PostalCodeModels PCM2 ON PCM1.PostalCode = PCM2.PostalCode
+                    WHERE PCM1.ScheduleId is null AND PCM2.ScheduleId>0) X";
+            }
 
+
+        }
+
+        #endregion
         public static string SelectPostalCodesWithMultipleSchedules
         {
             get
@@ -1187,6 +1361,88 @@ update " + dbCurrentDB + ".dbo.Vehicles set RegNo = 'KRF 150', Phone = '0739-105
         public static string UpdatePostalCodeScheduleIds(int scheduleId, string postalCode)
         {
             return "UPDATE " + dbCurrentDB + ".dbo.PostalCodeModels SET ScheduleId = " + scheduleId + " WHERE PostalCode = '" + postalCode + "'";
+        }
+        public static string AddContactsToCustomersWithout
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
+                    SELECT 0.0, 0, 1, c.PersonId, co.Id
+                    FROM {0}.dbo.Customers c
+                    JOIN {0}.dbo.CleaningObjects co ON c.Id = co.CustomerId
+                    WHERE c.PersonId NOT IN (
+                        SELECT PersonId FROM {0}.dbo.Contacts
+                    )
+                ", dbCurrentDB);
+            }
+        }
+        public static string AddContactsToCleaningObjectsWithout
+        {
+            get
+            {
+                return string.Format(@"
+                    INSERT INTO {0}.dbo.Contacts (RUT, InvoiceReference, Notify, PersonId, CleaningObjectId)
+                    SELECT 0.0, 0, 1, p.Id, co.Id
+                    FROM {0}.dbo.Persons p
+                    JOIN {0}.dbo.Customers cust ON cust.PersonId = p.Id
+                    JOIN {0}.dbo.CleaningObjects co ON co.CustomerId = cust.Id
+                    WHERE co.Id NOT IN(
+                        SELECT CleaningObjectId FROM {0}.dbo.Contacts
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string UpdateRUTOnContacts
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Contacts SET RUT = CASE WHEN twc.full_reduction_pot = 0 THEN
+                            CASE WHEN twc.taxreduction_percentage = 0 THEN 1 ELSE twc.taxreduction_percentage / 100 END
+                        ELSE 0 END
+                    FROM {0}.dbo.Customers c
+                    JOIN {0}.dbo.Persons p ON c.PersonId = p.Id
+                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
+                    JOIN {0}.dbo.Contacts con ON con.PersonId = p.Id
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string UpdateRUTByMainTWContacts
+        {
+            get
+            {
+                return string.Format(@"
+                    UPDATE {0}.dbo.Contacts SET RUT = 0
+                    WHERE PersonId IN (
+	                    SELECT distinct twcons.id
+	                    FROM {0}.dbo.Customers c
+	                    JOIN {0}.dbo.Persons p ON c.PersonId = p.Id
+	                    JOIN eriks_migration.dbo.TW_clients twc ON twc.clientnbr = c.Id
+	                    JOIN eriks_migration.dbo.TW_clients twcons ON twcons.mother_id = twc.id
+	                    JOIN {0}.dbo.Contacts con ON con.PersonId = p.Id
+	                    WHERE twc.full_reduction_pot = 0
+                    )
+                ", dbCurrentDB);
+            }
+        }
+
+        public static string GetCoIdsFromContactsWithTooMuchRut
+        {
+            get
+            {
+                return string.Format(@"
+                    SELECT DISTINCT c.CleaningObjectId FROM {0}.dbo.Contacts c
+                    JOIN (
+                        SELECT CleaningObjectId, SUM(RUT) AS rutSum FROM {0}.dbo.Contacts
+                        GROUP BY CleaningObjectId
+                    ) x
+                    ON x.CleaningObjectId = c.CleaningObjectId
+                    WHERE rutSum > 1                    
+                ", dbCurrentDB);
+            }
         }
     }
 }

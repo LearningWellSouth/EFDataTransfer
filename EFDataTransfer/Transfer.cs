@@ -11,187 +11,111 @@ namespace EFDataTransfer
 {
     public class Transfer
     {
-        private DataAccess _dataAccess;
-        private string dbCurrentDB;
+        public const string POSTAL_CODE_PLACEMENT_TYPE = "TypeOfPlacement";
+        private readonly DataAccess _dataAccess;
+        private readonly string _dbCurrentDb;
+        private readonly Logger _logger;
 
-        public Transfer()
+        public Transfer(Logger logger)
         {
-            //_dataAccess = new DataAccess("Data Source=tcp:x4erdsx1dl.database.windows.net,1433;Initial Catalog=putsa_db;User ID=efits@x4erdsx1dl;Password=Kn4ck3br0d");
+            _logger = logger;
+
+            //#if DEBUG
+            //    _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=debug_migration_db");
+            //    _dbCurrentDb = "debug_migration_db";
+            //    _dataAccess.ValidateConnectionSettings();
+            //#else
             _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
-            //Proddatabasen
-            dbCurrentDB = "eriks_test_db";
+                //dbCurrentDB = "eriks_dev_db";
+                _dbCurrentDb = "putsa_db";
+            //#endif
 
-            //dbCurrentDB = "putsa_db";
-
-            SqlStrings.dbToUse = dbCurrentDB;
-
+            SqlStrings.dbToUse = _dbCurrentDb;
         }
 
-        private void Addresses()
+        class PostalCodeArea
+        {
+            public int From,To;
+            public string PostalCode;
+            public int Id;
+
+
+        
+        }
+
+        public void Addresses()
         {
             var twAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWAddresses);
             var postalCodeModels = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPostalCodeModels);
             var clients = _dataAccess.SelectIntoTable("SELECT id, mother_id FROM eriks_migration.dbo.TW_clients");
+            var cache = new Dictionary<string,PostalCodeArea>();
 
             var cleaningObjects = new DataTable();
             cleaningObjects.Columns.AddRange(new DataColumn[] {
                 new DataColumn("Id", typeof(int)),
-                //new DataColumn("AppartmentNo", typeof(string)),
                 new DataColumn("PostalAddressModelId", typeof(int)),
                 new DataColumn("IsActive", typeof(bool)),
                 new DataColumn("RouteIndex", typeof(int)),
                 new DataColumn("Invoicable", typeof(bool)),
                 new DataColumn("IsNew", typeof(bool))
             });
-            var coMappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("Id", "Id"),
-                new SqlBulkCopyColumnMapping("PostalAddressModelId", "PostalAddressModelId"),
-                new SqlBulkCopyColumnMapping("IsActive", "IsActive"),
-                new SqlBulkCopyColumnMapping("RouteIndex", "RouteIndex"),
-                new SqlBulkCopyColumnMapping("Invoicable", "Invoicable"),
-                new SqlBulkCopyColumnMapping("IsNew", "IsNew")
-            };
+            var coMappings = MakeSimpleFieldMapping(new[]
+                {"Id", "PostalAddressModelId", "IsActive", "RouteIndex", "Invoicable", "IsNew"});
 
-            var persons = new DataTable();
-            persons.Columns.AddRange(new DataColumn[] {
+            var personPostalAddressModel = new DataTable();
+            personPostalAddressModel.Columns.AddRange(new DataColumn[] {
                 new DataColumn("PersonId", typeof(int)),
                 new DataColumn("PostalAddressModelId", typeof(int)),
                 new DataColumn("Type", typeof(int))
             });
-            var pMappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("PersonId", "PersonId"),
-                new SqlBulkCopyColumnMapping("PostalAddressModelId", "PostalAddressModelId"),
-                new SqlBulkCopyColumnMapping("Type", "Type")
-            };
+            var pMappings = MakeSimpleFieldMapping(new[]{"PersonId","PostalAddressModelId","Type"});
 
-            int checkInt = 0;
-            foreach (DataRow row in twAddresses.Rows)
+            var recordNumber = 0;
+            var parser = new AddressParser(_logger);
+            foreach (DataRow clientRecord in twAddresses.Rows)
             {
-                //int idTest = Convert.ToInt32(row["id"]);
-                //if (idTest == 1 || idTest == 2 || idTest == 3 || idTest == 4 || idTest == 2587 || idTest == 16323)
-                //    Console.WriteLine();
+                recordNumber++;
+                if (recordNumber%1000 == 0)
+                    Console.WriteLine(recordNumber + " of " + twAddresses.Rows.Count + " rows finished...");
 
-                checkInt++;
-                if (checkInt % 1000 == 0)
-                    Console.WriteLine(checkInt + " of " + twAddresses.Rows.Count + " rows finished...");
+                var parsedAddress = parser.ParseAddress(clientRecord["address"], clientRecord["postalcode"],clientRecord["city"]);
+
+                //"postalcode_fixed" is used by other "fixers" in late migration
+                if(parsedAddress.GetPostalCodeAsInteger() > 0)
+                    _dataAccess.NonQuery(SqlStrings.PostalCodeFixUpdate(Convert.ToInt32(clientRecord["id"]), parsedAddress.GetPostalCodeAsInteger())); ;
+                if(Convert.ToString(clientRecord["deleted"]) == "Y") continue;
 
                 int postalCodeModelId = 0;
-
-                string postalCodeStr = Convert.ToString(row["postalcode_fixed"]);
-
-                if (string.IsNullOrEmpty(postalCodeStr))
+                if (cache.ContainsKey(parsedAddress.GetKeyString()))
                 {
-                    if (!new int[] { 997, 3110, 3194, 3635, 3689, 5360, 7816, 7823, 8139, 10917 }.Contains(Convert.ToInt32(row["id"])))
-                        continue;
-                    else postalCodeStr = "'" + Convert.ToString(row["postalcode"]) + "'";
+                    var area = cache[parsedAddress.GetKeyString()];
+                    postalCodeModelId = area.Id;
                 }
-
-                string city = Convert.ToString(row["city"]).ToUpper().Trim();
-                string[] addrStrArr = Convert.ToString(row["address"]).Split(' ');
-                string address = addrStrArr[0];
-
-                int dummy = 0;
-                int streetInt = 0;
-
-                if (addrStrArr.Length > 2)
-                    for (int i = 1; i < addrStrArr.Length - 1; i++)
-                        if (!int.TryParse(addrStrArr[i], out dummy))
-                            address += " " + addrStrArr[i];
-                        else break;
-
-                address = address.ToUpper().Trim();
-                string streetNo = string.Empty;
-
-                bool startReg = false;
-
-                for (int i = 1; i < addrStrArr.Length; i++)
-                {
-                    if (!startReg && int.TryParse(addrStrArr[i], out dummy))
-                        startReg = true;
-
-                    if (startReg)
-                        streetNo += addrStrArr[i] + " ";
-                }
-
-                var postalCodeRows = postalCodeModels.Select("PostalCode = " + postalCodeStr);
-
-                bool even = false;
-
-                if (int.TryParse(streetNo, out streetInt))
-                    even = streetInt % 2 == 0;
                 else
                 {
-                    string evalStreetNo = string.Empty;
+                    var possiblePostalCodeModels = postalCodeModels.Select(
+                        string.Format("City = '{0}' AND PostalAddress ='{1}'", parsedAddress.City,parsedAddress.StreetName));
 
-                    for (int i = 0; i < streetNo.Length; i++)
+                    if (possiblePostalCodeModels.Any())
                     {
-                        if (int.TryParse(streetNo[i].ToString(), out dummy))
-                            evalStreetNo += streetNo[i];
-                        else break;
-                    }
+                        var postalCode = possiblePostalCodeModels.FirstOrDefault(
+                            x =>
+                                isStreetNumberWithinMaxAndMin(x, parsedAddress.StreetNumber)
+                                && hasCorrectPostalNumberType(x, parsedAddress));
 
-                    if (int.TryParse(evalStreetNo, out streetInt))
-                        even = streetInt % 2 == 0;
-                }
-
-                if (postalCodeRows.Count() > 0)
-                {
-                    var postalCodes = postalCodeRows.Where(x => Convert.ToString(x["City"]) == city);
-
-                    if (postalCodes.Count() > 0)
-                    {
-                        postalCodes = postalCodeRows.Where(x => Convert.ToString(x["PostalAddress"]) == address);
-
-                        if (postalCodes.Count() > 0)
-                        {
-                            DataRow postalCode = null;
-                            try
-                            {
-                                postalCode = postalCodes.FirstOrDefault(x => Convert.ToInt32(x["StreetNoLowest"]) <= streetInt && Convert.ToInt32(x["StreetNoHighest"]) >= streetInt &&
-                                    even ? Convert.ToString(x["TypeOfPlacement"]) == "NJ" : Convert.ToString(x["TypeOfPlacement"]) == "NU"
-                                );
-                            }
-                            catch(FormatException fex)
-                            {
-                                if (postalCodes.Count() == 1)
-                                    postalCode = postalCodes.FirstOrDefault();
-                                else
-                                {
-                                    var pam = _dataAccess.SelectIntoTable(string.Format(SqlStrings.SelectPostalAddressModelsBy(streetNo, postalCodes.Select(x => Convert.ToInt32(x["Id"])))));
-                                    try
-                                    {
-                                        postalCode = postalCodes.FirstOrDefault(x => Convert.ToInt32(x["Id"]) == Convert.ToInt32(pam.Rows[0]["PostalCodeModelId"]));
-                                    }
-                                    catch(IndexOutOfRangeException iorex)
-                                    {
-                                        
-                                    }
-                                }
-                            }
-                            catch(InvalidCastException icex)
-                            {
-                                if (Convert.IsDBNull(postalCodes.ElementAt(0)["StreetNoLowest"]))
-                                    postalCode = postalCodes.FirstOrDefault();
-                            }
-
-                            if (postalCode != null)
-                                postalCodeModelId = Convert.ToInt32(postalCode["Id"]);         
-                        }
+                        if (postalCode != null)
+                            postalCodeModelId = Convert.ToInt32(postalCode["Id"]);
                     }
                 }
-
                 if (postalCodeModelId == 0)
                 {
-                    postalCodeModelId = _dataAccess.InsertSingle(SqlStrings.InsertIntoPostalCodeModels(postalCodeStr, "AT", address, streetNo, streetNo, city, even ? "NJ" : "NU"));
+                    postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress);
+                    cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea(parsedAddress, postalCodeModelId));
                 }
 
-                var postalAddressModels = _dataAccess.SelectIntoTable(string.Format(
-                    "SELECT Id FROM " + dbCurrentDB + ".dbo.PostalAddressModels WHERE PostalCodeModelId = '{0}' AND StreetNo = '{1}'", postalCodeModelId, streetNo));
+                var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
 
-                bool isDelivery = (Convert.ToString(row["is_delivery"]) == "Y") || (Convert.ToInt32(row["route_num"]) > 0 && Convert.ToInt32(row["workarea_id"]) > 0);
-                bool isInvoice = Convert.ToString(row["is_invoice"]) == "Y";
-
-                int postalAddressModelId = 0;
+                int postalAddressModelId;
 
                 if (postalAddressModels.Rows.Count > 0)
                 {
@@ -199,50 +123,99 @@ namespace EFDataTransfer
                 }
                 else
                 {
-                    string address2 = Convert.ToString(row["co_address"]);
-                    if (string.IsNullOrEmpty(address2))
-                        address2 = " ";
+                    var address2 = Convert.IsDBNull(clientRecord["co_address"]) ? "" : Convert.ToString(clientRecord["co_address"]);
+                    var longitude = extractFloatOrDefault(clientRecord, "longitude");
+                    var latitude = extractFloatOrDefault(clientRecord, "latitude");
 
-                    float longitude;
-                    float latitude;
-
-                    if (!Convert.IsDBNull(row["longitude"]))
-                        longitude = (float)Convert.ToDouble(row["longitude"]);
-                    else
-                        longitude = 0.0F;
-                    if (!Convert.IsDBNull(row["latitude"]))
-                        latitude = (float)Convert.ToDouble(row["latitude"]);
-                    else
-                        latitude = 0.0F;
-
-                    postalAddressModelId = _dataAccess.InsertSingle(SqlStrings.InsertPostalAddressModel(streetNo, postalCodeModelId, "AT", address2, longitude, latitude));
+                    postalAddressModelId = InsertWithKeyReturn(SqlStrings.InsertPostalAddressModel(parsedAddress.StreetNumberFull, postalCodeModelId, "AT", address2, longitude, latitude));
                 }
 
-                //int addressType = isDelivery && isInvoice ? 3 : isDelivery ? 1 : 2;
+                bool isDelivery = (Convert.ToString(clientRecord["is_delivery"]) == "Y") || (Convert.ToInt32(clientRecord["route_num"]) > 0 && Convert.ToInt32(clientRecord["workarea_id"]) > 0);
+                bool isInvoice = Convert.ToString(clientRecord["is_invoice"]) == "Y";
 
-                foreach (DataRow person in clients.Select("id = " + row["client_id"]))
+                foreach (var person in clients.Select("id = " + clientRecord["client_id"]))
                 {
                     if (isDelivery)
-                        persons.Rows.Add(new object[] { person["id"], postalAddressModelId, 1 });
+                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 1);
 
                     if (isInvoice)
                     {
-                        persons.Rows.Add(new object[] { person["id"], postalAddressModelId, 2 });
+                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 2);
                         // Inte helt säker på detta
-                        persons.Rows.Add(new object[] { person["id"], postalAddressModelId, 4 });
+                        // TODO : now thats an interesting comment! :) "i'm not sure..."
+                        personPostalAddressModel.Rows.Add(person["id"], postalAddressModelId, 4);
                     }
                 }
 
-                if (isDelivery)
-                    cleaningObjects.Rows.Add(new object[] { row["id"], postalAddressModelId, true, row["route_num"], true, false });
-            }
+                if (isDelivery) // TODO : modify this to bind to customers. Now the customers are created before any way so we may do this. See the script "AfterCreatingCleaningObjects"
+                    cleaningObjects.Rows.Add(clientRecord["id"], postalAddressModelId, true, clientRecord["route_num"], true, false);
+                }
 
-            //Console.WriteLine("Inserting " + cleaningObjects.Rows.Count + " cleaning objects...");
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.CleaningObjects", cleaningObjects, true, coMappings);
-
-            //Console.WriteLine("Inserting " + persons.Rows.Count + " person to address connections...");
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.PersonPostalAddressModels", persons, false, pMappings);
+            _dataAccess.InsertMany(string.Format("{0}.dbo.CleaningObjects", _dbCurrentDb), cleaningObjects, true, coMappings);
+            _dataAccess.InsertMany(string.Format("{0}.dbo.PersonPostalAddressModels", _dbCurrentDb), personPostalAddressModel, false, pMappings);
         }
+
+        private static SqlBulkCopyColumnMapping[] MakeSimpleFieldMapping(IEnumerable<string> fields)
+                    {
+            return fields.Select(field => new SqlBulkCopyColumnMapping(field, field)).ToArray();
+        }
+
+        public static bool hasCorrectPostalNumberType(DataRow dataRow, Address parsedAddress)
+                        {
+            const string EVEN = "NJ";
+            const string ODD = "NU";
+
+            var type = Convert.ToString(dataRow[POSTAL_CODE_PLACEMENT_TYPE]);
+            if (!(type == EVEN || type == ODD)) return true;
+            return (parsedAddress.isEvenStreetNumber() ^ type == ODD);
+                            }
+
+        private int InsertWithKeyReturn(string statement)
+                            {
+                                    try
+                                    {
+              return _dataAccess.InsertSingle(statement);
+                                    }
+            catch (Exception exc)
+                                    {
+              _logger.PostError("Exception while inserting "+RecurseOverExceptionMessages(exc)+exc.StackTrace);
+              throw;
+                                    }
+                                }
+
+        private string RecurseOverExceptionMessages(Exception exc)
+                            {
+            if (exc == null) return "";
+            return exc.Message + RecurseOverExceptionMessages(exc.InnerException);
+                            }
+
+        private static float extractFloatOrDefault(DataRow row, string columnName, float def = 0.0F)
+        {
+            return !Convert.IsDBNull(row[columnName]) ? (float) Convert.ToDouble(row[columnName]) : def;
+                        }
+
+        private DataTable fetchAddressEntriesForPostalCodeAndStreetNumber(int postalCodeModelId, Address parsedAddress)
+                {
+            return _dataAccess.SelectIntoTable(string.Format(
+              "SELECT Id FROM " + _dbCurrentDb + ".dbo.PostalAddressModels WHERE PostalCodeModelId = '{0}' AND StreetNo = '{1}'", postalCodeModelId, parsedAddress.StreetNumberFull));
+                }
+
+        private int InsertNewPostalCodeModelRow(Address addr)
+                {
+            _logger.PostInfo(string.Format("Creating new postal code {0} {1} {2}",addr.StreetName,addr.City,addr.PostalNumber));
+            return InsertWithKeyReturn(SqlStrings.InsertIntoPostalCodeModels(addr.PostalNumber, "AT", addr.StreetName, 1, addr.StreetNumber, addr.City, addr.isEvenStreetNumber() ? "NJ" : "NU"));
+                }
+
+        public static bool isStreetNumberWithinMaxAndMin(DataRow x, int streetNumber)
+        {
+            if (streetNumber <= 0) return true;
+            return ExtractBeginingAsIntegerValue(x["StreetNoLowest"]) <= streetNumber && ExtractBeginingAsIntegerValue(x["StreetNoHighest"]) >= streetNumber;
+                }
+
+        private static int ExtractBeginingAsIntegerValue(object data)
+                {
+            return AddressParser.ExtractBeginingOfStringAsInteger(Convert.ToString(data));
+                    }
 
         /* Main routine for doing the actual transfer */
         public void TransferData(string tableName)
@@ -256,10 +229,6 @@ namespace EFDataTransfer
                     Settings();
                     break;
                 case "POSTALADDRESSMODELS":
-                    Console.WriteLine("Start of correcting postalcodes in old table...");
-                    FixPostalCodes();
-                    Console.WriteLine("End of correcting postalcodes.");
-                    Console.WriteLine("Transferring addresses...");
                     Addresses();
                     break;
                 case "CONTACTS":
@@ -281,6 +250,8 @@ namespace EFDataTransfer
                     SchedulesAndPeriods();
                     break;
                 case "WORKERS":
+                    Console.WriteLine("Creating users for workers that does not have any...");
+                    _dataAccess.NonQuery(SqlStrings.CreateUsersForNewWorkers);
                     _dataAccess.NonQuery(SqlStrings.TransferWorkers);
                     break;
                 case "VEHICLES":
@@ -289,9 +260,9 @@ namespace EFDataTransfer
                     _dataAccess.NonQuery(SqlStrings.UpdateVehicles);
                     break;
                 case "TEAMS":
-                    //_dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
-                    //Console.WriteLine("Connect Workers with Team...");
-                    //_dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
+                    _dataAccess.NonQuery(SqlStrings.CreateTeamsAndConnectToVehicles);
+                    Console.WriteLine("Connect Workers with Team...");
+                    _dataAccess.NonQuery(SqlStrings.ConnectWorkersToTeams);
                     Console.WriteLine("Connecting teams to cleaning objects...");
                     ConnectTeamsToCleaningObjects();
                 // Samtliga putsobjekt som inte får teamId av ovanstående har i TW-tabellen workarea_id = 0, vilket jag antar betyder att de inte är kopplade
@@ -313,7 +284,7 @@ namespace EFDataTransfer
                     break;
                 case "CLEANINGOBJECTPRICES":
                     SubscriptionPrices();
-                    _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM {0}.dbo.ServiceGroups)", dbCurrentDB));
+                    _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjectPrices SET ServiceGroupId = (SELECT Max(Id) FROM {0}.dbo.ServiceGroups)", _dbCurrentDb));
                     break;
                 case "ISSUES":
 
@@ -325,12 +296,16 @@ namespace EFDataTransfer
                     CreateTeamUsers();
                     break;
                 default:
-                    break;
+                    throw new ArgumentException("No migration for "+tableName);
             }
         }
 
+        public void AddSchedulesToCleaningObjectsWithout()
+        {
+            Console.WriteLine("Adding schedules to those addresses that lacks them...");
+            _dataAccess.NonQuery(SqlStrings.UpdateAllPostalCodeScheduleIds);
+        }
  
-
         private void ConnectCustomersToCleaningObjects()
         {
             
@@ -338,16 +313,16 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.InsertContactsWhereNeeded);
         }
 
-        private void ConnectTeamsToCleaningObjects()
+        public void ConnectTeamsToCleaningObjects()
         {
             var twWorkAreas = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkAreas);
-            var schedules = _dataAccess.SelectIntoTable("SELECT Id, Name FROM " + dbCurrentDB + ".dbo.Schedules");
+            var schedules = _dataAccess.SelectIntoTable("SELECT Id, Name FROM " + _dbCurrentDb + ".dbo.Schedules");
             int checkInt = 0;
 
             foreach (DataRow row in twWorkAreas.Rows)
             {
                 int teamId = Convert.ToInt32(_dataAccess.SelectIntoTable(
-                    string.Format("SELECT t.Id AS Id FROM " + dbCurrentDB + ".dbo.Teams t JOIN " + dbCurrentDB + ".dbo.Vehicles v ON v.Id = t.VehicleId WHERE v.Notes = '{0}'", row["name"])).Rows[0]["Id"]);
+                    string.Format("SELECT t.Id AS Id FROM " + _dbCurrentDb + ".dbo.Teams t JOIN " + _dbCurrentDb + ".dbo.Vehicles v ON v.Id = t.VehicleId WHERE v.Notes = '{0}'", row["name"])).Rows[0]["Id"]);
 
                 //int tempTeamId = 0;
 
@@ -399,38 +374,45 @@ namespace EFDataTransfer
 
                 //foreach (DataRow idRow in coIds.Rows)
                 //{
-                _dataAccess.NonQuery(string.Format("UPDATE " + dbCurrentDB + ".dbo.CleaningObjects SET TeamId = {0} WHERE Id = {1}", teamId, row["Id"])); //idRow["Id"]));
+                _dataAccess.NonQuery(string.Format("UPDATE " + _dbCurrentDb + ".dbo.CleaningObjects SET TeamId = {0} WHERE Id = {1}", teamId, row["Id"])); //idRow["Id"]));
                 //}
 
                 //var pcmIds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodeModelIdsBy(address, Convert.ToInt32(row["postalcode_fixed"]), Convert.ToString(row["city"]).ToUpper()));
 
                 //foreach (DataRow idRow in pcmIds.Rows)
                 //{
-                    var srt = string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"]));
-                    var schedule = schedules.Select(string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"])));
 
+                    //var schedule = schedules.Select(string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"])));
+               
                     //_dataAccess.NonQuery(string.Format("UPDATE PostalCodeModels SET ScheduleId = {0} WHERE Id = {1}", schedule[0]["Id"], idRow["Id"]));
                 //}
 
-                    _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
+                    //_dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
                     checkInt++;
                     if (checkInt % 1000 == 0)
                         Console.WriteLine(checkInt + " of " + twWorkAreas.Rows.Count + " rows finished...");
 
             }
-
-            // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
-            //var pcmsWithMultiScheds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodesWithMultipleSchedules);
-            //foreach (DataRow row in pcmsWithMultiScheds.Rows)
-            //{
-            //    string postalCode = Convert.ToString(row["PostalCode"]);
-            //    int majorityScheduleId = Convert.ToInt32(_dataAccess.SelectIntoTable(SqlStrings.SelectMajorityScheduleId(postalCode)).Rows[0]["ScheduleId"]);
-
-            //    _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(majorityScheduleId, postalCode));
-            //}
         }
 
- 
+        public void SetPostalCodeScheduleIds()
+        {
+            Console.WriteLine("Fixing schedulesIds on PostalCodeModels");
+            _dataAccess.NonQuery(SqlStrings.SetPostalCodeScheduleIds);
+            }
+
+            // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
+        public void MergePostalCodeSchedules()
+        {
+            var pcmsWithMultiScheds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodesWithMultipleSchedules);
+            foreach (DataRow row in pcmsWithMultiScheds.Rows)
+            {
+                string postalCode = Convert.ToString(row["PostalCode"]);
+                int majorityScheduleId = Convert.ToInt32(_dataAccess.SelectIntoTable(SqlStrings.SelectMajorityScheduleId(postalCode)).Rows[0]["ScheduleId"]);
+
+                _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(majorityScheduleId, postalCode));
+            }
+        }
 
         public void CreateTeamUsers()
         {
@@ -440,8 +422,8 @@ namespace EFDataTransfer
         private void SetRUT()
         {
             _dataAccess.NonQuery(SqlStrings.SetRUT);
-            _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM " + dbCurrentDB + ".dbo.Persons WHERE NoPersonalNoValidation = 1)");
-            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", dbCurrentDB));
+            _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM " + _dbCurrentDb + ".dbo.Persons WHERE NoPersonalNoValidation = 1)");
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
         }
 
         public void Employees()
@@ -449,6 +431,10 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.TransferEmployees);
         }
 
+        public void TransferNewEmployees()
+        {
+            _dataAccess.NonQuery(SqlStrings.TransferNewEmployees);
+        }
   
         private void SchedulesAndPeriods()
         {
@@ -490,7 +476,7 @@ namespace EFDataTransfer
                     interlude["id"], scheduleId, interlude["weekFrom"], Convert.ToInt32(interlude["weekFrom"]) + 1, Convert.ToDateTime(interlude["startdate"]), interlude["period"] });
             }
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Periods", periods, true, mapping);
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Periods", periods, true, mapping);
         }
 
         private void Settings()
@@ -524,14 +510,16 @@ namespace EFDataTransfer
             settings.Rows.Add(new object[] { "ConfirmationMailContent", "Bästa kund!<br/><br/><br/><br/>Vi har idag putsat fönster på {0}. Vill du kontakta oss gällande putsningen, vänligen ring kundtjänst på 0771-424242 och ange refnr {1}.<br /><br />Miljövän? Tänk på att du kan anmäla dig för e-faktura hos din bank! <br /><br />Med vänliga hälsningar, {2}<br />Eriks Fönsterputs" });
             settings.Rows.Add(new object[] { "DebugMailAddress", "msp@learningwell.se" });
             settings.Rows.Add(new object[] { "ProductionMode", "false" });
+            settings.Rows.Add(new object[] { "InvoiceMailSubject", "Faktura" });
+            settings.Rows.Add(new object[] { "InvoiceMailContent", "Bästa kund!<br/><br/><br/><br/>I medföljande bilaga finner du en faktura från Eriks Fönsterputs.<br /><br /> Vill du kontakta oss gällande frågor kring fakturan, vänligen ring kundtjänst på 0771-424242.<br /><br />Med vänliga hälsningar<br />Eriks Fönsterputs" });
+            settings.Rows.Add(new object[] { "SubscriptionMailSubject", "Bekräftelse" });
+            settings.Rows.Add(new object[] { "SubscriptionMailMessage", "Meddelande 1" });
+            settings.Rows.Add(new object[] { "SubscriptionMailMessage2", "Meddelande 2" });
+            settings.Rows.Add(new object[] { "SubscriptionMailMessage3", "Meddelande 3" });
+            settings.Rows.Add(new object[] { "SubscriptionMailMessage4", "Meddelande 4" });
+            settings.Rows.Add(new object[] { "SubscriptionMailMessage5", "Meddelande 5" });
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Settings", settings, false, mapping);
-
-            //Nollställ locktable
-
-            _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.TableLocks SET NextInvoiceNumberTable = 0");
-
-
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Settings", settings, false, mapping);
         }
 
         private void Subscriptions()
@@ -554,7 +542,7 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("ServiceGroupId", "ServiceGroupId")
             };
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Prices", prices, false, mapping);
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Prices", prices, false, mapping);
 
             var twWorkOrders = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrders);
 
@@ -562,21 +550,17 @@ namespace EFDataTransfer
             subscriptions.Columns.AddRange(new DataColumn[] {
                 new DataColumn("Id", typeof(int)),
                 new DataColumn("CleaningObjectId", typeof(int)),
-                new DataColumn("IsInactive", typeof(bool))
+                new DataColumn("IsInactive", typeof(bool)),
+                new DataColumn("ActiveChangedDate", typeof(DateTime))
             });
 
             
             foreach (DataRow row in twWorkOrders.Rows)
             {
-                //int caId = Convert.ToInt32(row["caId"]);
-
-                //if (caId != prevId)
-                    subscriptions.Rows.Add(new object[] { row["woId"], row["caId"], row["woIsInactive"] });
-
-                //prevId = caId;
+                subscriptions.Rows.Add(new object[] { row["woId"], row["caId"], row["woIsInactive"], DateTime.Now });
             }
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.Subscriptions", subscriptions, true, null);
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.Subscriptions", subscriptions, true, null);
             _dataAccess.NonQuery(SqlStrings.SetSubscriptionsInActive);
         }
 
@@ -611,12 +595,17 @@ namespace EFDataTransfer
                 if (woPrice != 0 && sPrice != 0)
                     mod = (float)Math.Round((decimal)(woPrice / sPrice), 4);
                 else if (sPrice == 0 && woPrice != 0)
+                {
                     mod = (float)woPrice;
+
+                    if (mod > 0)
+                        mod = (float)Math.Round(mod * 1.25f, 4);
+                }
 
                 coPrices.Rows.Add(new object[] { coId, Convert.ToInt32(row["ServiceId"]), mod, Convert.ToString(row["wolDesc"]) });
             }
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.CleaningObjectPrices", coPrices, false, mappings);
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.CleaningObjectPrices", coPrices, false, mappings);
         }
 
         private void SubscriptionServices()
@@ -624,7 +613,7 @@ namespace EFDataTransfer
             var twWorkOrderLines = _dataAccess.SelectIntoTable(SqlStrings.SelectTWWorkOrderLines);
             var subscriptionServices = new DataTable();
             subscriptionServices.Columns.AddRange(new DataColumn[] {
-                new DataColumn("SetOrChanged", typeof(int)),
+                new DataColumn("IsPermanent", typeof(int)),
                 new DataColumn("SubscriptionId", typeof(int)),
                 new DataColumn("ServiceId", typeof(int)),
                 new DataColumn("PeriodNo", typeof(int))
@@ -639,6 +628,7 @@ namespace EFDataTransfer
                     string interludeStr = interludeOccasion.Trim('}').Split('{')[1];
 
                     string[] interludeArr = interludeStr.Split(';');
+                    bool[] periods = new bool[7];
 
                     for (int i = 0; i < interludeArr.Length; i++)
                     {
@@ -653,93 +643,175 @@ namespace EFDataTransfer
                                 if (occasion == "o10000")
                                 {
                                     for (int j = 1; j < 8; j++)
-                                        subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], j });
+                                        subscriptionServices.Rows.Add(new object[] { 1, row["workorder_id"], row["sId"], j });
 
                                     break;
                                 }
                                 else
                                 {
                                     int periodNo = int.Parse(occasion[occasion.Length - 1].ToString());
-
-                                    subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], periodNo });
+                                    periods[periodNo - 1] = true;
                                 }
                             }
+                                }
+                            }
+
+                    if (periods.Contains(true))
+                    {
+                        for (int j = 0; j < 7; j++)
+                        {
+                            subscriptionServices.Rows.Add(new object[] { periods[j] ? 1:0, row["workorder_id"], row["sId"], j + 1 });
                         }
                     }
                 }
                 else
                 {
                     for (int j = 1; j < 8; j++)
-                        subscriptionServices.Rows.Add(new object[] { 3, row["workorder_id"], row["sId"], j });
+                        subscriptionServices.Rows.Add(new object[] { 0, row["workorder_id"], row["sId"], j });
                 }
             }
 
             var mappings = new SqlBulkCopyColumnMapping[] {
-                new SqlBulkCopyColumnMapping("SetOrChanged", "SetOrChanged"),
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
                 new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
                 new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
                 new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
             };
 
-            _dataAccess.InsertMany("" + dbCurrentDB + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+            _dataAccess.InsertMany("" + _dbCurrentDb + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
         }
 
-    
-        private void FixPostalCodes()
+        public void SetBasePriceAndInactive()
         {
-            var twClientAddresses = _dataAccess.SelectIntoTable(SqlStrings.SelectTWClientAddresses);
+            _dataAccess.NonQuery(SqlStrings.SetEmptySubscriptionsInactive);
+    
+            var cleaningObjectPrices = new DataTable();
+            cleaningObjectPrices.Columns.AddRange(new DataColumn[]
+        {
+                new DataColumn("Modification", typeof(float)),
+                new DataColumn("CleaningObjectId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("ServiceGroupId", typeof(int))
+            });
+
+            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriodsForEmptySubs(DateTime.Now.Year));
+
+            var subscriptionServices = new DataTable();
+            subscriptionServices.Columns.AddRange(new DataColumn[] {
+                new DataColumn("IsPermanent", typeof(int)),
+                new DataColumn("SubscriptionId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("PeriodNo", typeof(int))
+            });
+
+            int periodNo = 0;
+            int subscriptionId = 0;
+
+            int serviceGroupId = Convert.ToInt32(_dataAccess.SelectIntoTable(string.Format("SELECT Max(Id) AS Id FROM {0}.dbo.ServiceGroups", _dbCurrentDb)).Rows[0]["Id"]);
             
-            foreach (DataRow row in twClientAddresses.Rows)
+            foreach (DataRow row in periods.Rows)
             {
-                string postalCode = string.Empty;
-                string orgPostalCode = Convert.ToString(row["postalcode"]).Trim();
+                int rowSubscriptionId = Convert.ToInt32(row["SubscriptionId"]);
 
-                if (orgPostalCode.Length > 5)
+                if (subscriptionId != rowSubscriptionId)
                 {
-                    string[] postalCodeArr = orgPostalCode.Split(' ');
-                    if (postalCodeArr.Length == 2)
-                        postalCode = postalCodeArr[0] + postalCodeArr[1];
-                    else if (postalCodeArr.Length == 3)
-                        postalCode = postalCodeArr[0] + postalCodeArr[2];
-                }
-                else if (orgPostalCode.Length == 5)
-                    postalCode = orgPostalCode;
-                else
-                {
-                    Console.WriteLine("Kunde inte korrigera rad med id: " + row["id"]);
+                    cleaningObjectPrices.Rows.Add(new object[] { 1.0, row["CleaningObjectId"], 1, serviceGroupId });
+
+                    periodNo = 1;
+                    subscriptionId = rowSubscriptionId;
                 }
 
+                subscriptionServices.Rows.Add(new object[] { 1, rowSubscriptionId, 28, periodNo });
 
-                int pcInt = 0;
-                if (int.TryParse(postalCode, out pcInt))
-                {
-                    _dataAccess.NonQuery(SqlStrings.PostalCodeFixUpdate(Convert.ToInt32(row["id"]), int.Parse(postalCode)));
+                periodNo++;
                 }
-                else
-                    Console.WriteLine("Kunde inte korrigera rad med id: " + row["id"]);
+
+            var mappings = new SqlBulkCopyColumnMapping[] {
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
+                new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
+            };
+
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
+
+            mappings = new SqlBulkCopyColumnMapping[]
+                {
+                new SqlBulkCopyColumnMapping("Modification", "Modification"),
+                new SqlBulkCopyColumnMapping("CleaningObjectId", "CleaningObjectId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("ServiceGroupId", "ServiceGroupId")
+            };
+
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.CleaningObjectPrices", cleaningObjectPrices, false, mappings);
+                }
+
+        // Nytt 2015-11-13
+        public void SetAdminFees()
+        {
+            var periods = _dataAccess.SelectIntoTable(SqlStrings.SelectAllPeriods(DateTime.Now.Year));
+
+            var subscriptionServices = new DataTable();
+            subscriptionServices.Columns.AddRange(new DataColumn[] {
+                new DataColumn("IsPermanent", typeof(int)),
+                new DataColumn("SubscriptionId", typeof(int)),
+                new DataColumn("ServiceId", typeof(int)),
+                new DataColumn("PeriodNo", typeof(int))
+            });
+            
+            int periodNo = 1;
+            int subscriptionId = Convert.ToInt32(periods.Rows[0]["SubscriptionId"]);
+
+            foreach (DataRow row in periods.Rows)
+            {
+                int rowSubscriptionId = Convert.ToInt32(row["SubscriptionId"]);
+
+                if (subscriptionId != rowSubscriptionId)
+                {
+                    periodNo = 1;
+                    subscriptionId = rowSubscriptionId;
             }
+                
+                subscriptionServices.Rows.Add(new object[] { 1, rowSubscriptionId, 28, periodNo });
+
+                periodNo++;
         }
 
+            var mappings = new SqlBulkCopyColumnMapping[] {
+                new SqlBulkCopyColumnMapping("IsPermanent", "IsPermanent"),
+                new SqlBulkCopyColumnMapping("SubscriptionId", "SubscriptionId"),
+                new SqlBulkCopyColumnMapping("ServiceId", "ServiceId"),
+                new SqlBulkCopyColumnMapping("PeriodNo", "PeriodNo")
+            };
+
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.SubscriptionServices", subscriptionServices, false, mappings);
  
+            _dataAccess.NonQuery(SqlStrings.InsertAdminFeePriceMods);
+        }
 
         public void UtilityTables()
         {
             string sqlTemp;
 
-            sqlTemp="SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks ON INSERT INTO " + dbCurrentDB + ".dbo.TableLocks (Id, NextInvoiceNumberTable) VALUES (1, 0) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.TableLocks OFF";
+            sqlTemp = string.Format(@"SET IDENTITY_INSERT {0}.dbo.TableLocks ON 
+                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
+                SET IDENTITY_INSERT {0}.dbo.TableLocks OFF", _dbCurrentDb);
 
-            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.TableLocks").Rows.Count == 0)
-                _dataAccess.NonQuery(
-                    @sqlTemp);
+            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.TableLocks").Rows.Count == 0)
+                _dataAccess.NonQuery(@sqlTemp);
+            else
+                _dataAccess.NonQuery(string.Format(@"UPDATE {0}.dbo.TableLocks SET IsLocked = 0", _dbCurrentDb));
 
-            sqlTemp = "SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers ON INSERT INTO " + dbCurrentDB + ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1) SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.NextInvoiceNumbers OFF";
+            sqlTemp = "SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers ON INSERT INTO " + _dbCurrentDb + 
+                ".dbo.NextInvoiceNumbers (Id, NextAvailableInvoiceNumber) VALUES (1, 1000000) SET IDENTITY_INSERT " + _dbCurrentDb + ".dbo.NextInvoiceNumbers OFF";
 
-            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + dbCurrentDB + ".dbo.NextInvoiceNumbers").Rows.Count == 0)
-                _dataAccess.NonQuery(
-                    @sqlTemp);
+            if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.NextInvoiceNumbers").Rows.Count == 0)
+                _dataAccess.NonQuery(@sqlTemp);
+            else _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.NextInvoiceNumbers SET NextAvailableInvoiceNumber = 1000000", _dbCurrentDb));
         }
 
-        private void NotesAndIssues()
+        public void NotesAndIssues()
         {
             _dataAccess.NonQuery(SqlStrings.TransferCustomerNotes);
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectNotes);
@@ -748,6 +820,7 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectEconomyNotes);
             _dataAccess.NonQuery(SqlStrings.TransferCleaningObjectFieldNotes);
             _dataAccess.NonQuery(SqlStrings.TransferReclamationNotes);
+            _dataAccess.NonQuery(SqlStrings.TransferDamageReports);
             _dataAccess.NonQuery(SqlStrings.TransferTerminationNotes);
 
             _dataAccess.NonQuery(SqlStrings.TransferInfoBeforeCleaning);
@@ -793,23 +866,23 @@ namespace EFDataTransfer
                 new SqlBulkCopyColumnMapping("CustomerId", "CustomerId")
             };
 
-            foreach (DataRow row in twIssues.Rows)
-            {
-                issues.Rows.Add(new object[] {
-                    row["Title"], Regex.Replace(Convert.ToString(row["Description"]), @"<[^>]+>|&nbsp;", "").Trim(), row["Status"], row["Priority"], row["StartDate"], row["FinishedDate"],
-                    row["IssueType"], row["Private"], row["CustomerId"]
-                });
-            }
+            //foreach (DataRow row in twIssues.Rows)
+            //{
+            //    issues.Rows.Add(new object[] {
+            //        row["Title"], Regex.Replace(Convert.ToString(row["Description"]), @"<[^>]+>|&nbsp;", "").Trim(), row["Status"], row["Priority"], row["StartDate"], row["FinishedDate"],
+            //        row["IssueType"], row["Private"], row["CustomerId"]
+            //    });
+            //}
 
-            _dataAccess.InsertMany(dbCurrentDB + ".dbo.Issues", issues, false, mappings);
+            _dataAccess.InsertMany(_dbCurrentDb + ".dbo.Issues", issues, false, mappings);
         }
 
-        private void TransferCleaningObjectInfo(DataTable noteIds, string infoField, bool includeHeader)
+        private void TransferCleaningObjectInfo(DataTable noteTableIds, string infoField, bool includeHeader)
         {
-            foreach (DataRow noteRow in noteIds.Rows)
+            foreach (DataRow noteRow in noteTableIds.Rows)
             {
-                int noteId = Convert.ToInt32(noteRow["table_id"]);
-                var contentTable = _dataAccess.SelectIntoTable(SqlStrings.SelectTwNoteAndCleaningObjectId(noteId));
+                int noteTableId = Convert.ToInt32(noteRow["table_id"]);
+                var contentTable = _dataAccess.SelectIntoTable(SqlStrings.SelectTwNoteAndCleaningObjectId(noteTableId, infoField == "InfoBeforeCleaning"));
 
                 int coId = 0;
                 string content = string.Empty;
@@ -829,14 +902,13 @@ namespace EFDataTransfer
                     coId = Convert.ToInt32(contentRow["coId"]);
                 }
 
-                _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjects SET {1} = '{2}' WHERE Id = {3}", dbCurrentDB, infoField, content, coId));
+                _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.CleaningObjects SET {1} = '{2}' WHERE Id = {3}", _dbCurrentDb, infoField, content.Replace("'", "''"), coId));
             }
         }
   
-
         internal void MergeSubscriptionsOld()
         {
-            var subscriptions = _dataAccess.SelectIntoTable("SELECT * FROM " + dbCurrentDB + ".dbo.Subscriptions");
+            var subscriptions = _dataAccess.SelectIntoTable("SELECT * FROM " + _dbCurrentDb + ".dbo.Subscriptions");
 
             int subIdToChange = 0;
             int checkInt = 0;
@@ -853,7 +925,7 @@ namespace EFDataTransfer
                     {
                         subIdToChange = Convert.ToInt32(subIdToChangeTbl.Rows[0]["Id"]);
                         _dataAccess.NonQuery(SqlStrings.UpdateSubscriptionServiceSubscriptionIds(subIdToSet, subIdToChange));
-                        _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE Id = " + subIdToChange);
+                        _dataAccess.NonQuery("DELETE FROM " + _dbCurrentDb + ".dbo.Subscriptions WHERE Id = " + subIdToChange);
                     }
                 }
                 checkInt++;
@@ -865,7 +937,7 @@ namespace EFDataTransfer
 
         internal void MergeSubscriptions()
         {
-            var cleaningObjectsIds = _dataAccess.SelectIntoTable("SELECT count(CleaningObjectId) As NoOfSubscriptions,CleaningObjectId FROM " + dbCurrentDB + ".dbo.Subscriptions Group By CleaningObjectId HAVING count(CleaningObjectId) >1");
+            var cleaningObjectsIds = _dataAccess.SelectIntoTable("SELECT count(CleaningObjectId) As NoOfSubscriptions,CleaningObjectId FROM " + _dbCurrentDb + ".dbo.Subscriptions Group By CleaningObjectId HAVING count(CleaningObjectId) >1");
 
             int subIdToKeep = 0;
             string collectedIds = "";
@@ -874,7 +946,7 @@ namespace EFDataTransfer
             {
                 int cleaningObjectId = Convert.ToInt32(row["CleaningObjectId"]);
 
-                var subIdToChangeTbl = _dataAccess.SelectIntoTable("Select Id from " + dbCurrentDB + ".dbo.subscriptions where CleaningObjectId = " + cleaningObjectId.ToString());
+                var subIdToChangeTbl = _dataAccess.SelectIntoTable("Select Id from " + _dbCurrentDb + ".dbo.subscriptions where CleaningObjectId = " + cleaningObjectId.ToString());
                 
                 collectedIds = "0";
                 subIdToKeep = Convert.ToInt32(subIdToChangeTbl.Rows[0]["Id"]);
@@ -884,22 +956,21 @@ namespace EFDataTransfer
                     collectedIds = collectedIds + "," + Convert.ToString(SubId["Id"]);
                 }
 
-                _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo.SubscriptionServices SET SubscriptionId = " + subIdToKeep + " WHERE SubscriptionId IN(" + collectedIds + ")");
-                _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo.Subscriptions WHERE Id!=" + subIdToKeep.ToString() + " AND CleaningObjectId = " + cleaningObjectId.ToString());
+                _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo.SubscriptionServices SET SubscriptionId = " + subIdToKeep + " WHERE SubscriptionId IN(" + collectedIds + ")");
+                _dataAccess.NonQuery("DELETE FROM " + _dbCurrentDb + ".dbo.Subscriptions WHERE Id!=" + subIdToKeep.ToString() + " AND CleaningObjectId = " + cleaningObjectId.ToString());
             }
         }
         
-
-        public void DeleteTable(string refTable,string refFieldToClean,string table)
+        public void DeleteAllRowsInTable(string refTable,string refFieldToClean,string table)
         {
             if (refFieldToClean.Length>1)
             {
                 if(refTable.Length>1)
                 {
-                    _dataAccess.NonQuery("UPDATE " + dbCurrentDB + ".dbo." + refTable + " SET " + refFieldToClean + " = Null");
+                    _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo." + refTable + " SET " + refFieldToClean + " = Null");
                 }
             }
-            _dataAccess.NonQuery("DELETE FROM " + dbCurrentDB + ".dbo." + table);
+            _dataAccess.NonQuery("DELETE FROM " + _dbCurrentDb + ".dbo." + table);
         }
 
         private void TransferAndConnectBanks()
@@ -909,7 +980,47 @@ namespace EFDataTransfer
 
         internal void TruncateTable(string table)
         {
-            _dataAccess.NonQuery("TRUNCATE TABLE " + dbCurrentDB + ".dbo." + table);
+            _dataAccess.NonQuery("TRUNCATE TABLE " + _dbCurrentDb + ".dbo." + table);
+        }
+
+        public void FixCleaningObjectsWithUnconnectedTeams()
+        {
+            var unconnected = _dataAccess.SelectIntoTable(SqlStrings.GetCleaningObjectsUnconnectedToTeams);
+            if (unconnected.Rows.Count > 0)
+                _dataAccess.NonQuery(SqlStrings.ConnectUnconnectedCleaningObjectsToTeams);
+        }
+
+        public void FixMoreCleaningObjectsWithUnconnectedTeams()
+        {
+            var unconnected = _dataAccess.SelectIntoTable(SqlStrings.GetCleaningObjectsStillUnconnectedToTeam);
+
+            foreach (DataRow row in unconnected.Rows)
+            {
+                var possibleTeamId = _dataAccess.SelectIntoTable(SqlStrings.GetTeamIdForUnconnectedCleaningObject(Convert.ToInt32(row["PostalAddressModelId"])));
+                if (possibleTeamId.Rows.Count == 0)
+                    possibleTeamId = _dataAccess.SelectIntoTable(SqlStrings.GetTeamIdFromPcmsForUnconnectedCleaningObject(Convert.ToInt32(row["PostalAddressModelId"])));
+                if (possibleTeamId.Rows.Count == 0)
+                    possibleTeamId = _dataAccess.SelectIntoTable(SqlStrings.GetTeamIdFromSamePostalCodeForUnconnectedCo(Convert.ToInt32(row["Id"])));
+                if (possibleTeamId.Rows.Count == 0)
+                    possibleTeamId = _dataAccess.SelectIntoTable(SqlStrings.GetTeamIdFromSameCityForUnconnCo(Convert.ToInt32(row["Id"])));
+
+                _dataAccess.NonQuery(SqlStrings.SetTeamIdOnCleaningObject(Convert.ToInt32(row["Id"]), Convert.ToInt32(possibleTeamId.Rows[0]["TeamId"])));
+            }
+        }
+
+        public void AddContactsWhereMissing()
+        {
+            _dataAccess.NonQuery(SqlStrings.AddContactsToCustomersWithout);
+            _dataAccess.NonQuery(SqlStrings.AddContactsToCleaningObjectsWithout);
+        }
+
+        public void FixRUT()
+        {
+            _dataAccess.NonQuery(SqlStrings.UpdateRUTByMainTWContacts);
+            _dataAccess.NonQuery(SqlStrings.UpdateRUTOnContacts);
+            
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", _dbCurrentDb));
+            _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
         }
     }
 }
