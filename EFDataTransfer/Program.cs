@@ -108,7 +108,6 @@ namespace EFDataTransfer
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
 
-
                 transferrer.CreateUsersForEmployees();
                 foreach (tableProperty curTable in allTables)
                 {
@@ -175,9 +174,9 @@ namespace EFDataTransfer
                */
 
 
+                transferrer.AddContactsWhereMissing();
                 transferrer.FixRUT();
 
-                transferrer.AddContactsWhereMissing();
                 transferrer.SetPostalCodeScheduleIds();
 
                 transferrer.UtilityTables();
