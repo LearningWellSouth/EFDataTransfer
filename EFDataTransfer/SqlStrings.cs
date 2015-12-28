@@ -497,10 +497,10 @@ namespace EFDataTransfer
                     SELECT notes.header AS Title, content AS [Description], 4 AS [Status], 0 AS [Priority],
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS StartDate,
 	                    CASE WHEN notes.mtime IS NOT NULL THEN notes.mtime ELSE notes.ctime END AS FinishedDate,
-	                    0 AS [Private], wo.client_id AS CustomerId, 10 AS IssueType
+	                    0 AS [Private], cl.clientnbr AS CustomerId, 10 AS IssueType
                     FROM eriks_migration.dbo.TW_notes AS notes
-                    JOIN eriks_migration.dbo.TW_workorders wo ON notes.table_id = wo.id
-                    JOIN {0}.dbo.Customers co ON co.Id = wo.client_id
+                    JOIN eriks_migration.dbo.TW_clients cl ON notes.table_id = cl.id
+                    JOIN {0}.dbo.Customers co ON co.Id = cl.clientnbr
                     WHERE tag_type LIKE '%falt%' AND table_name LIKE '%clients%'
                 ", dbCurrentDB);
             }
