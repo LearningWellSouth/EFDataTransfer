@@ -89,7 +89,7 @@ namespace EFDataTransfer
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Workers", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "VehicleHistories", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "Teams", refFieldToClean = "VehicleId", tableName = "Vehicles", truncFlag = false, transferData = true });
-                allTables.Add(new tableProperty() { refTable = "Users", refFieldToClean = "TeamId", tableName = "Teams", truncFlag = false, transferData = true }); // Also connects schedules to postalcodes
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Teams", truncFlag = false, transferData = true }); // Also connects schedules to postalcodes
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Accounts", truncFlag = false, transferData = true });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "SubCategories", truncFlag = false, transferData = true });
 
@@ -104,26 +104,23 @@ namespace EFDataTransfer
 
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "CleaningObjectPrices", truncFlag = true, transferData = true });
-                //////////allTables.Add(new tableProperty() { refTable = "Issues", refFieldToClean = "CreatorId", tableName = "Users", truncFlag = false, transferData = true }); // Connected to workers
-                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                ////Kopplingen av arbetslag till användare funkar inte, löses manuellt
+                allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Users", truncFlag = false, transferData = true }); // Connected to workers
 
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "Issues", truncFlag = true, transferData = true });
                 
-                transferrer.TransferNewEmployees(); // När en ny användare kommer in i systemet kraschar migreringen om den inte läggs in
-
+                transferrer.CreateUsersForEmployees();
                 foreach (tableProperty curTable in allTables)
                 {
                     //Töm tabellen först
                         if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                     {
-                        Console.WriteLine("truncating {0}...", curTable.tableName);
-                        transferrer.TruncateTable(curTable.tableName);
+                        ErrorLogger.PostInfo(string.Format("truncating {0}...", curTable.tableName));
+                        //transferrer.TruncateTable(curTable.tableName);
                     }
                     else
                     {
-                        Console.WriteLine("Deleting all records in {0}...", curTable.tableName);
-                        transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
+                        ErrorLogger.PostInfo(string.Format("Deleting all records in {0}...", curTable.tableName));
+                        //transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                     }
                     //Kör transfer
     
@@ -143,10 +140,6 @@ namespace EFDataTransfer
                 //// A: Det verkar som att den inte körts när SchedulesAndPeriods() körts, eller behöver data som tillkommer senare i flödet, samt
                 //// 2: Vi vill kunna köra den utan att också behöva kommentera in Schedules i denna fil, kommentera ut SchedulesAndPeriods() i andra filen, och till sist kommentera ut delete/trunc-partierna i denna fil
                 transferrer.AddSchedulesToCleaningObjectsWithout();
-
-
-
-
 
 
                 //// Om hemadresser inte kommit över, kör detta:
@@ -185,7 +178,6 @@ namespace EFDataTransfer
                
                 transferrer.FixRUT();
 
-                transferrer.AddContactsWhereMissing();
                 transferrer.SetPostalCodeScheduleIds();
 
                 transferrer.UtilityTables();

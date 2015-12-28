@@ -39,8 +39,11 @@ namespace EFDataTransfer
             public string PostalCode;
             public int Id;
 
-
-        
+            public PostalCodeArea(Address addr, int id)
+            {
+                Id = id;
+                PostalCode = addr.PostalNumber;
+            }
         }
 
         public void Addresses()
@@ -250,8 +253,7 @@ namespace EFDataTransfer
                     SchedulesAndPeriods();
                     break;
                 case "WORKERS":
-                    Console.WriteLine("Creating users for workers that does not have any...");
-                    _dataAccess.NonQuery(SqlStrings.CreateUsersForNewWorkers);
+                    Console.WriteLine("Creating Workers...");
                     _dataAccess.NonQuery(SqlStrings.TransferWorkers);
                     break;
                 case "VEHICLES":
@@ -291,7 +293,6 @@ namespace EFDataTransfer
                     NotesAndIssues();
                     break;
                 case "USERS":
-                    Employees();
                     Console.WriteLine("Creating team users...");
                     CreateTeamUsers();
                     break;
@@ -401,22 +402,9 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(SqlStrings.SetPostalCodeScheduleIds);
             }
 
-            // Make sure no postal codes contain more than 1 schedule - set schedule to the one with the most entries
-        public void MergePostalCodeSchedules()
-        {
-            var pcmsWithMultiScheds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodesWithMultipleSchedules);
-            foreach (DataRow row in pcmsWithMultiScheds.Rows)
-            {
-                string postalCode = Convert.ToString(row["PostalCode"]);
-                int majorityScheduleId = Convert.ToInt32(_dataAccess.SelectIntoTable(SqlStrings.SelectMajorityScheduleId(postalCode)).Rows[0]["ScheduleId"]);
-
-                _dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(majorityScheduleId, postalCode));
-            }
-        }
-
         public void CreateTeamUsers()
         {
-            _dataAccess.NonQuery(SqlStrings.CreateUsersForTeams);
+            _dataAccess.NonQuery(string.Format(@"INSERT INTO {0}.dbo.Users (Username, [Permissions], TeamId) SELECT CONCAT(REPLACE(Name, ' ', ''), '@eriksfonsterputs.se'), 128, Id FROM {0}.dbo.Teams", _dbCurrentDb));
         }
 
         private void SetRUT()
@@ -426,14 +414,15 @@ namespace EFDataTransfer
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN (SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
         }
 
-        public void Employees()
+        public void CreateUsersForEmployees()
         {
-            _dataAccess.NonQuery(SqlStrings.TransferEmployees);
-        }
-
-        public void TransferNewEmployees()
-        {
-            _dataAccess.NonQuery(SqlStrings.TransferNewEmployees);
+            _dataAccess.NonQuery(string.Format(@"
+                    SET IDENTITY_INSERT {0}.dbo.Users ON
+                    INSERT INTO {0}.dbo.Users (Id, Username, Permissions)
+                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
+                    FROM eriks_migration.dbo.TW_employees
+                    WHERE deleted = 'N'
+                    SET IDENTITY_INSERT {0}.dbo.Users OFF", _dbCurrentDb));
         }
   
         private void SchedulesAndPeriods()
@@ -650,6 +639,8 @@ namespace EFDataTransfer
                                 else
                                 {
                                     int periodNo = int.Parse(occasion[occasion.Length - 1].ToString());
+                                    if (periods[periodNo - 1]) _logger.PostError("duplicate schedule occation= " + occasion + ", workorder_id= " + row["workorder_id"] + ", sid=" + row["sId"]);
+                                    //else
                                     periods[periodNo - 1] = true;
                                 }
                             }
@@ -794,8 +785,8 @@ namespace EFDataTransfer
             string sqlTemp;
 
             sqlTemp = string.Format(@"SET IDENTITY_INSERT {0}.dbo.TableLocks ON 
-                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
-                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, [Table], IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, [Table], IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
                 SET IDENTITY_INSERT {0}.dbo.TableLocks OFF", _dbCurrentDb);
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.TableLocks").Rows.Count == 0)
@@ -971,11 +962,6 @@ namespace EFDataTransfer
                 }
             }
             _dataAccess.NonQuery("DELETE FROM " + _dbCurrentDb + ".dbo." + table);
-        }
-
-        private void TransferAndConnectBanks()
-        {
-
         }
 
         internal void TruncateTable(string table)

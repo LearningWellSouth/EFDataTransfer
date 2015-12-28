@@ -48,21 +48,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string CreateUsersForNewWorkers
-        {
-            get
-            {
-                return string.Format(@"
-                    SET IDENTITY_INSERT {0}.dbo.Users ON
-                    INSERT INTO {0}.dbo.Users (Id, Username, [Permissions])
-                    SELECT id, firstname + ' ' + lastname AS Username, 96 AS [Permissions] 
-                    FROM eriks_migration.dbo.TW_employees
-                    WHERE deleted = 'N' AND role_id = 1
-                    AND id NOT IN (SELECT Id FROM {0}.dbo.Users)
-                    SET IDENTITY_INSERT {0}.dbo.Users OFF", dbCurrentDB);
-            }
-        }
-
         public static string GetCleaningObjectsUnconnectedToTeams
         {
             get
@@ -324,35 +309,6 @@ namespace EFDataTransfer
             }
         }
 
-        public static string TransferEmployees
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
-                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
-                    FROM eriks_migration.dbo.TW_employees
-                    WHERE deleted = 'N'
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
-            }
-        }
-
-        public static string TransferNewEmployees
-        {
-            get
-            {
-                return @"
-                    SET IDENTITY_INSERT " + dbCurrentDB + @".dbo.Users ON
-                    INSERT INTO " + dbCurrentDB + @".dbo.Users (Id, Username, Permissions)
-                    SELECT id, CONCAT(firstname, ' ', lastname), CASE WHEN role_id = 1 THEN 96 ELSE 63 END
-                    FROM eriks_migration.dbo.TW_employees e
-                    WHERE deleted = 'N'
-                    AND e.id NOT IN (SELECT Id FROM " + dbCurrentDB + @".dbo.Users)
-                    SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.Users OFF";
-            }
-        }
-
         public static string TransferServices
         {
             get
@@ -363,7 +319,7 @@ namespace EFDataTransfer
                         VisibleOnInvoice, IsSalarySetting, SortOrder, IsDefault, 
                         SubCategoryId)
                     SELECT id AS Id, 
-	                    CASE category_id
+                        CASE category_id
 		                    WHEN 1 THEN 1
 		                    WHEN 2 THEN 2
 		                    WHEN 3 THEN 2
@@ -375,6 +331,7 @@ namespace EFDataTransfer
 		                    WHEN 10 THEN 5
 		                    WHEN 11 THEN 7
 		                    WHEN 12 THEN 6
+                            WHEN 13 THEN 2
 	                    END AS Category, 
 	                    name AS Name, 
 	                    CASE account_id
@@ -412,6 +369,7 @@ namespace EFDataTransfer
 		                    WHEN name = 'Textrad' THEN 9
 		                    WHEN category_id = 11 THEN 8
 		                    WHEN category_id = 12 THEN 8
+                            WHEN category_id = 13 THEN 5
 		                    END AS SubCategoryId
 	                    FROM eriks_migration.dbo.TW_services WHERE deleted = 'N'
                     SET IDENTITY_INSERT " + dbCurrentDB + ".dbo.[Services] OFF";
@@ -862,13 +820,21 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT wol.id AS wolId, interlude_occasion, workorder_id, s.Id AS sId FROM eriks_migration.dbo.TW_workorderlines wol
-                    JOIN eriks_migration.dbo.TW_services twS ON twS.id = wol.service_id
-                    JOIN " + dbCurrentDB + @".dbo.[Services] s ON s.Id = twS.id
-                    WHERE wol.deleted = 'N'
-                    AND tws.deleted = 'N'
-                    AND wol.interlude_num IS NOT NULL
-                ";
+                return string.Format(@"WITH orders_with_alternative AS (
+	                        SELECT work.id
+	                        FROM eriks_migration.dbo.TW_workorders work
+	                        INNER JOIN eriks_migration.dbo.TW_workorderlines line ON line.workorder_id =  work.id
+	                        WHERE work.status = 4 and line.service_id = 1 AND work.delivery_clientaddress_id 
+		                        IN (SELECT delivery_clientaddress_id FROM eriks_migration.dbo.TW_workorders work WHERE work.status = 3)
+                        )
+                        SELECT wol.id AS wolId, interlude_occasion, workorder_id, s.Id AS sId FROM eriks_migration.dbo.TW_workorderlines wol
+                                            JOIN eriks_migration.dbo.TW_services twS ON twS.id = wol.service_id
+                                            JOIN {0}.dbo.[Services] s ON s.Id = twS.id
+                                            WHERE wol.deleted = 'N'
+                                            AND tws.deleted = 'N'
+                                            AND wol.interlude_num IS NOT NULL
+					                        AND wol.workorder_id NOT IN( SELECT id FROM orders_with_alternative )
+                ",dbCurrentDB);
             }
         }
 
@@ -1147,15 +1113,6 @@ namespace EFDataTransfer
 					JOIN eriks_migration.dbo.TW_resources_employees emp ON w.UserId = emp.employee_id
 					JOIN " + dbCurrentDB + @".dbo.Teams t ON t.VehicleId = emp.resource_id
                 ";
-            }
-        }
-
-        public static string CreateUsersForTeams
-        {
-            get
-            {
-                return @"INSERT INTO " + dbCurrentDB + ".dbo.Users (Username, [Permissions], TeamId) SELECT CONCAT(REPLACE(Name, ' ', ''), '@eriksfonsterputs.se'), 128, Id FROM " + 
-                    dbCurrentDB + ".dbo.Teams";
             }
         }
 
