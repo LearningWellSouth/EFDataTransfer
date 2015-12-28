@@ -820,13 +820,21 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT wol.id AS wolId, interlude_occasion, workorder_id, s.Id AS sId FROM eriks_migration.dbo.TW_workorderlines wol
-                    JOIN eriks_migration.dbo.TW_services twS ON twS.id = wol.service_id
-                    JOIN " + dbCurrentDB + @".dbo.[Services] s ON s.Id = twS.id
-                    WHERE wol.deleted = 'N'
-                    AND tws.deleted = 'N'
-                    AND wol.interlude_num IS NOT NULL
-                ";
+                return string.Format(@"WITH orders_with_alternative AS (
+	                        SELECT work.id
+	                        FROM eriks_migration.dbo.TW_workorders work
+	                        INNER JOIN eriks_migration.dbo.TW_workorderlines line ON line.workorder_id =  work.id
+	                        WHERE work.status = 4 and line.service_id = 1 AND work.delivery_clientaddress_id 
+		                        IN (SELECT delivery_clientaddress_id FROM eriks_migration.dbo.TW_workorders work WHERE work.status = 3)
+                        )
+                        SELECT wol.id AS wolId, interlude_occasion, workorder_id, s.Id AS sId FROM eriks_migration.dbo.TW_workorderlines wol
+                                            JOIN eriks_migration.dbo.TW_services twS ON twS.id = wol.service_id
+                                            JOIN {0}.dbo.[Services] s ON s.Id = twS.id
+                                            WHERE wol.deleted = 'N'
+                                            AND tws.deleted = 'N'
+                                            AND wol.interlude_num IS NOT NULL
+					                        AND wol.workorder_id NOT IN( SELECT id FROM orders_with_alternative )
+                ",dbCurrentDB);
             }
         }
 

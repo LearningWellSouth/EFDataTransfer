@@ -785,8 +785,8 @@ namespace EFDataTransfer
             string sqlTemp;
 
             sqlTemp = string.Format(@"SET IDENTITY_INSERT {0}.dbo.TableLocks ON 
-                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
-                INSERT INTO {0}.dbo.TableLocks (Id, Table, IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, [Table], IsLocked) VALUES (1, 'NextInvoiceNumber', 0);
+                INSERT INTO {0}.dbo.TableLocks (Id, [Table], IsLocked) VALUES (2, 'WorkOrderGenerator', 0);
                 SET IDENTITY_INSERT {0}.dbo.TableLocks OFF", _dbCurrentDb);
 
             if (_dataAccess.SelectIntoTable("SELECT Id FROM " + _dbCurrentDb + ".dbo.TableLocks").Rows.Count == 0)
