@@ -116,12 +116,12 @@ namespace EFDataTransfer
                         if (curTable.truncFlag == true) // TODO : this switching is unneccessary. Use delete statement for all or "truncate cascaded"
                     {
                         ErrorLogger.PostInfo(string.Format("truncating {0}...", curTable.tableName));
-                        transferrer.TruncateTable(curTable.tableName);
+                        //transferrer.TruncateTable(curTable.tableName);
                     }
                     else
                     {
                         ErrorLogger.PostInfo(string.Format("Deleting all records in {0}...", curTable.tableName));
-                        transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
+                        //transferrer.DeleteAllRowsInTable(curTable.refTable, curTable.refFieldToClean, curTable.tableName);
                     }
                     //Kör transfer
     
