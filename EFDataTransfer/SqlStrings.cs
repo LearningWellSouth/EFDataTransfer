@@ -860,19 +860,27 @@ namespace EFDataTransfer
         {
             get
             {
-                return @"SELECT s.Id AS ServiceId, wol.unit_price, twS.price_per_unit, ca.id AS caId, wol.[description] AS wolDesc FROM eriks_migration.dbo.TW_workorderlines wol
+                return string.Format(@"WITH orders_with_alternative AS (
+	                        SELECT work.id
+	                        FROM eriks_migration.dbo.TW_workorders work
+	                        INNER JOIN eriks_migration.dbo.TW_workorderlines line ON line.workorder_id =  work.id
+	                        WHERE work.status = 4 and line.service_id = 1 AND work.delivery_clientaddress_id 
+		                        IN (SELECT delivery_clientaddress_id FROM eriks_migration.dbo.TW_workorders work WHERE work.status = 3)
+                        )
+                        SELECT s.Id AS ServiceId, wol.unit_price, twS.price_per_unit, ca.id AS caId, wol.[description] AS wolDesc FROM eriks_migration.dbo.TW_workorderlines wol
                         JOIN eriks_migration.dbo.TW_services twS ON wol.service_id = twS.id
-                        JOIN " + dbCurrentDB + @".dbo.[Services] s ON twS.id = s.Id
+                        JOIN {0}.dbo.[Services] s ON twS.id = s.Id
                         JOIN eriks_migration.dbo.TW_workorders wo ON wol.workorder_id = wo.id
                         JOIN eriks_migration.dbo.TW_clientaddresses ca ON wo.delivery_clientaddress_id = ca.id
-                        WHERE --ca.is_delivery = 'Y' AND 
+                        WHERE 
                         ca.deleted = 'N'
                         AND wo.deleted = 'N'
                         AND wo.[status] <> 6
                         AND postalcode_fixed IS NOT NULL
                         AND wol.interlude_num IS NOT NULL
                         AND wol.deleted = 'N'
-                    ";
+						AND wol.workorder_id not in (SELECT id FROM orders_with_alternative)
+                    ",dbCurrentDB);
             }
         }
 
