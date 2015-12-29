@@ -113,7 +113,7 @@ namespace EFDataTransfer
                 if (postalCodeModelId == 0)
                 {
                     postalCodeModelId = InsertNewPostalCodeModelRow(parsedAddress);
-                    cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea());
+                    cache.Add(parsedAddress.GetKeyString(), new PostalCodeArea(parsedAddress,postalCodeModelId));
                 }
 
                 var postalAddressModels = fetchAddressEntriesForPostalCodeAndStreetNumber(postalCodeModelId, parsedAddress);
