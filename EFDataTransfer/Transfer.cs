@@ -28,7 +28,7 @@ namespace EFDataTransfer
             #else
                 _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
                 //_dbCurrentDb = "eriks_dev_db";
-                _dbCurrentDb = "putsa_db_dirty";
+                _dbCurrentDb = "putsa_db";
             #endif
 
                 SqlStrings.dbToUse = _dbCurrentDb;
@@ -325,71 +325,8 @@ namespace EFDataTransfer
             {
                 int teamId = Convert.ToInt32(_dataAccess.SelectIntoTable(
                     string.Format("SELECT t.Id AS Id FROM " + _dbCurrentDb + ".dbo.Teams t JOIN " + _dbCurrentDb + ".dbo.Vehicles v ON v.Id = t.VehicleId WHERE v.Notes = '{0}'", row["name"])).Rows[0]["Id"]);
-
-                //int tempTeamId = 0;
-
-                //switch (Convert.ToInt32(row["resource_id"]))
-                //{
-                //    case 1: tempTeamId = 57; break;
-                //    case 2: tempTeamId = 58; break;
-                //    case 3: tempTeamId = 59; break;
-                //    case 4: tempTeamId = 60; break;
-                //    case 5: tempTeamId = 61; break;
-                //    case 6: tempTeamId = 62; break;
-                //    case 7: tempTeamId = 63; break;
-                //    case 8: tempTeamId = 64; break;
-                //    case 9: tempTeamId = 65; break;
-                //    case 10: tempTeamId = 66; break;
-                //    case 11: tempTeamId = 67; break;
-                //    case 12: tempTeamId = 68; break;
-                //    case 13: tempTeamId = 69; break;
-                //    case 14: tempTeamId = 70; break;
-                //    case 15: tempTeamId = 71; break;
-                //    case 16: tempTeamId = 72; break;
-                //    case 17: tempTeamId = 73; break;
-                //}
-
-                //string[] addrStr = Convert.ToString(row["address"]).Split(' ');
-                //string address = addrStr[0].ToUpper();
-
-                //if (addrStr.Length > 2)
-                //    for (int i = 0; i < addrStr.Length - 1; i++)
-                //        address += " " + addrStr[i];
-
-                //string streetNo = string.Empty;
-
-                //bool startReg = false;
-                //int dummy = 0;
-
-                //for (int i = 1; i < addrStr.Length; i++)
-                //{
-                //    if (!startReg && int.TryParse(addrStr[i], out dummy))
-                //        startReg = true;
-
-                //    if (startReg)
-                //        streetNo += addrStr[i] + " ";
-                //}
-
-                //var coIds = _dataAccess.SelectIntoTable(string.Format("SELECT Id FROM CleaningObjects WHERE 
-                    //SqlStrings.SelectCleaningObjectBy(
-                    //Convert.ToInt32(row["clientnbr"]), address, Convert.ToInt32(row["postalcode_fixed"]), Convert.ToString(row["city"]).ToUpper(), streetNo));
-
-                //foreach (DataRow idRow in coIds.Rows)
-                //{
                 _dataAccess.NonQuery(string.Format("UPDATE " + _dbCurrentDb + ".dbo.CleaningObjects SET TeamId = {0} WHERE Id = {1}", teamId, row["Id"])); //idRow["Id"]));
-                //}
 
-                //var pcmIds = _dataAccess.SelectIntoTable(SqlStrings.SelectPostalCodeModelIdsBy(address, Convert.ToInt32(row["postalcode_fixed"]), Convert.ToString(row["city"]).ToUpper()));
-
-                //foreach (DataRow idRow in pcmIds.Rows)
-                //{
-
-                    //var schedule = schedules.Select(string.Format("Name LIKE '% {0}'", Convert.ToString(row["interlude_num"])));
-               
-                    //_dataAccess.NonQuery(string.Format("UPDATE PostalCodeModels SET ScheduleId = {0} WHERE Id = {1}", schedule[0]["Id"], idRow["Id"]));
-                //}
-
-                    //_dataAccess.NonQuery(SqlStrings.UpdatePostalCodeScheduleIds(Convert.ToInt32(schedule[0]["Id"]), Convert.ToInt32(row["Id"])));
                     checkInt++;
                     if (checkInt % 1000 == 0)
                         Console.WriteLine(checkInt + " of " + twWorkAreas.Rows.Count + " rows finished...");
@@ -996,7 +933,7 @@ namespace EFDataTransfer
 
         public void ConvertDuplicateServicesToExtrasOnCleaningObjectsAndSubscriptions()
         {
-            const int UNIT_PRICE_FOR_EXTRAS = 100;
+            const int UNIT_PRICE_FOR_EXTRAS = 50;
             _dataAccess.NonQuery(
                 string.Format(
                 @"SET IDENTITY_INSERT {0}.dbo.Services ON;
@@ -1034,13 +971,20 @@ namespace EFDataTransfer
 								,[ServiceGroupId]
 								,[ServiceId])
 							VALUES
-								({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),75)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),76)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),77)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),78)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),79)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),80)
-								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),81);
+								({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),75)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),76)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),77)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),78)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),79)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),80)
+								,({1},(SELECT 1 FROM {0}.dbo.ServiceGroups),81)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),75)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),76)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),77)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),78)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),79)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),80)
+								,({1},(SELECT 2 FROM {0}.dbo.ServiceGroups),81);
                 END;
                 SET IDENTITY_INSERT {0}.dbo.Services OFF;", _dbCurrentDb, UNIT_PRICE_FOR_EXTRAS)
             );
