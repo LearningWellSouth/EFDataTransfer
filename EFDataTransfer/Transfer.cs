@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -20,17 +21,17 @@ namespace EFDataTransfer
         {
             _logger = logger;
 
-            //#if DEBUG
-            //    _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=debug_migration_db");
-            //    _dbCurrentDb = "debug_migration_db";
-            //    _dataAccess.ValidateConnectionSettings();
-            //#else
-            _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
-            //_dbCurrentDb = "eriks_dev_db";
-            _dbCurrentDb = "putsa_db_dirty";
-            //#endif
+            #if DEBUG
+                _dbCurrentDb = "putsa_db";
+                _dataAccess = new DataAccess(@"Server=WIN-HIA2DJPDOTQ\SQLEXPRESS;Integrated Security=true;Initial Catalog=" + _dbCurrentDb);
+                _dataAccess.ValidateConnectionSettings();
+            #else
+                _dataAccess = new DataAccess("Data Source=server01.eriksfonsterputs.net;Initial Catalog=master;User ID=sa;Password=VNbNAQHbK8TDdeMuDXdv");
+                //_dbCurrentDb = "eriks_dev_db";
+                _dbCurrentDb = "putsa_db_dirty";
+            #endif
 
-            SqlStrings.dbToUse = _dbCurrentDb;
+                SqlStrings.dbToUse = _dbCurrentDb;
         }
 
         class PostalCodeArea
@@ -953,23 +954,6 @@ namespace EFDataTransfer
             }
         }
         
-        public void DeleteAllRowsInTable(string refTable,string refFieldToClean,string table)
-        {
-            if (refFieldToClean.Length>1)
-            {
-                if(refTable.Length>1)
-                {
-                    _dataAccess.NonQuery("UPDATE " + _dbCurrentDb + ".dbo." + refTable + " SET " + refFieldToClean + " = Null");
-                }
-            }
-            _dataAccess.NonQuery("DELETE FROM " + _dbCurrentDb + ".dbo." + table);
-        }
-
-        internal void TruncateTable(string table)
-        {
-            _dataAccess.NonQuery("TRUNCATE TABLE " + _dbCurrentDb + ".dbo." + table);
-        }
-
         public void FixCleaningObjectsWithUnconnectedTeams()
         {
             var unconnected = _dataAccess.SelectIntoTable(SqlStrings.GetCleaningObjectsUnconnectedToTeams);
@@ -1008,6 +992,121 @@ namespace EFDataTransfer
             
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE NoPersonalNoValidation = 1)", _dbCurrentDb));
             _dataAccess.NonQuery(string.Format("UPDATE {0}.dbo.Contacts SET RUT = 0 WHERE PersonId IN(SELECT Id FROM {0}.dbo.Persons WHERE PersonType = 2)", _dbCurrentDb));
+        }
+
+        public void ConvertDuplicateServicesToExtrasOnCleaningObjectsAndSubscriptions()
+        {
+            const int UNIT_PRICE_FOR_EXTRAS = 100;
+            _dataAccess.NonQuery(
+                string.Format(
+                @"SET IDENTITY_INSERT {0}.dbo.Services ON;
+                IF NOT EXISTS(SELECT * FROM {0}.dbo.Services WHERE Name = 'Extra 5')
+                BEGIN 
+	                INSERT INTO {0}.[dbo].[Services]
+			                   ([Id]
+			                   ,[Name]
+			                   ,[Category]
+			                   ,[RUT]
+			                   ,[Vat]
+			                   ,[AccountId]
+			                   ,[CalcPercentage]
+			                   ,[CalcHourly]
+			                   ,[CalcArea]
+			                   ,[CalcNone]
+			                   ,[From]
+			                   ,[Circa]
+			                   ,[VisibleOnInvoice]
+			                   ,[IsSalarySetting]
+			                   ,[SortOrder]
+			                   ,[IsDefault]
+			                   ,[SubCategoryId]
+			                   ,[SettableByCleaners])
+		                 VALUES
+			                   (75,'Extra 5',4,1,1,1,0,0,0,0,0,1,1,1,75,0,12,1)
+			                   ,(76,'Extra 6',4,1,1,1,0,0,0,0,0,1,1,1,76,0,12,1)
+			                   ,(77,'Extra 7',4,1,1,1,0,0,0,0,0,1,1,1,77,0,12,1)
+                                ,(78,'Extra 8',4,1,1,1,0,0,0,0,0,1,1,1,78,0,12,1)
+                                ,(79,'Extra 9',4,1,1,1,0,0,0,0,0,1,1,1,79,0,12,1)
+                                ,(80,'Extra 10',4,1,1,1,0,0,0,0,0,1,1,1,80,0,12,1)
+                                ,(81,'Extra 11',4,1,1,1,0,0,0,0,0,1,1,1,81,0,12,1);
+						INSERT INTO {0}.[dbo].[Prices]
+								([Cost]
+								,[ServiceGroupId]
+								,[ServiceId])
+							VALUES
+								({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),75)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),76)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),77)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),78)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),79)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),80)
+								,({1},(SELECT max(Id) FROM {0}.dbo.ServiceGroups),81);
+                END;
+                SET IDENTITY_INSERT {0}.dbo.Services OFF;", _dbCurrentDb, UNIT_PRICE_FOR_EXTRAS)
+            );
+            var duplicates = _dataAccess.SelectIntoTable(
+                string.Format(
+                    @"WITH duplicate_service as (
+	                    select CleaningObjectId, ServiceId from {0}.dbo.CleaningObjectPrices
+	                    group by CleaningObjectId, ServiceId
+	                    having count(*) > 1
+                    )
+                    SELECT co_prices.Id AS SubscriptionPriceId, co_prices.Modification, co_prices.CleaningObjectId, co_prices.ServiceId,co_prices.[FreeText]
+                        ,(SELECT Cost FROM {0}.dbo.Prices prices WHERE ServiceId = co_prices.ServiceId AND prices.ServiceGroupId = 1) as ServicePrice
+                        , (SELECT Name FROM {0}.dbo.Services WHERE Id = co_prices.ServiceId) AS ServiceName
+                    FROM {0}.dbo.CleaningObjectPrices co_prices
+                    INNER JOIN duplicate_service on duplicate_service.CleaningObjectId = co_prices.CleaningObjectId and duplicate_service.ServiceId = co_prices.ServiceId
+                    ORDER BY CleaningObjectId,ServiceId"
+                    , _dbCurrentDb)
+            );
+            var cleaningObject = 0;
+            var servicesOnObject = new List<int>();
+            var extras = new[]{75,76,77,78,79,80,81};
+
+            foreach (DataRow duplicate in duplicates.Rows)
+            {
+                if (cleaningObject != extractInteger(duplicate,"CleaningObjectId"))
+                {
+                    servicesOnObject.Clear();
+                    cleaningObject = extractInteger(duplicate,"CleaningObjectId");
+                }
+                var service = extractInteger(duplicate, "ServiceId");
+                if (servicesOnObject.Contains(service))
+                {
+                    var availableExtra = extras.First(extra => !servicesOnObject.Contains(extra));
+                    service = availableExtra;
+                    var modification = (extractFloatOrDefault(duplicate, "Modification")*extractFloatOrDefault(duplicate, "ServicePrice")) / UNIT_PRICE_FOR_EXTRAS;
+                    _dataAccess.NonQuery(
+                        string.Format(
+                        @"with duplicates as (
+	                        select CleaningObjectId, ServiceId from {0}.dbo.CleaningObjectPrices
+	                        group by CleaningObjectId, ServiceId
+	                        having count(*) > 1
+                        ), ordered_duplicates as (
+	                        select ss.id as sub_serv_id,subs.CleaningObjectId,ss.ServiceId,subs.id as subscription,
+		                        ss.PeriodNo,
+		                        row_number() over (partition by SubscriptionId,ss.ServiceId, PeriodNo order by ss.ServiceId) as duplication_rank 
+	                        from {0}.dbo.SubscriptionServices ss
+	                        inner join {0}.dbo.Subscriptions subs ON subs.Id = ss.SubscriptionId
+	                        inner join duplicates on duplicates.CleaningObjectId = subs.CleaningObjectId AND duplicates.ServiceId = ss.ServiceId
+                        ), filtered_first_duplicate as (
+	                        select * 
+	                        from ordered_duplicates
+	                        where duplication_rank = 2 and CleaningObjectId = {1:D}
+                        )
+                        UPDATE {0}.dbo.SubscriptionServices set ServiceId = 25 WHERE id IN (select sub_serv_id from filtered_first_duplicate)",
+                            _dbCurrentDb, extractInteger(duplicate, "CleaningObjectId"))
+                    );
+                    _dataAccess.NonQuery(string.Format(CultureInfo.InvariantCulture, "UPDATE {0}.dbo.CleaningObjectPrices SET ServiceId = {1}, [FreeText]='{2}-{3}', Modification = {4:F8} WHERE Id = {5}"
+                        , _dbCurrentDb, service, duplicate["ServiceName"], duplicate["FreeText"], modification, extractInteger(duplicate, "SubscriptionPriceId")));
+                }
+                servicesOnObject.Add(service);
+            }
+        }
+
+        private int extractInteger(DataRow record, string field)
+        {
+            return Convert.ToInt32(record[field]);
         }
     }
 }

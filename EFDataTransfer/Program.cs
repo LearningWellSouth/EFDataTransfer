@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -50,12 +51,25 @@ namespace EFDataTransfer
     {
         static void Main(string[] args)
         {
-          var ErrorLogger = new Logger();
+            const string NO_DIFF_ARGUMENT = "no-diffs"; 
+            var ErrorLogger = new Logger();
+
             try
             {
-              var transferrer = new Transfer(ErrorLogger);
-              var allTables = new List<tableProperty>();
-                
+                var transferrer = new Transfer(ErrorLogger);
+
+                if ((args.Length <= 0) || (args[0] != "migrate" && args[0] != NO_DIFF_ARGUMENT))
+                {
+                    throw new Exception(string.Format("Needs one argument. Either 'migrate' for full migration or '{0}' to only run correction for duplicate services",NO_DIFF_ARGUMENT));
+                }
+                if (args[0] == NO_DIFF_ARGUMENT)
+                {
+                    transferrer.ConvertDuplicateServicesToExtrasOnCleaningObjectsAndSubscriptions();
+                    return;
+                }
+
+                var allTables = new List<tableProperty>();
+
                 // TODO : is this the complete list of tables?
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "BGMAXPaymentInvoiceConnections", truncFlag = true, transferData = false });
                 allTables.Add(new tableProperty() { refTable = "", refFieldToClean = "", tableName = "WorkOrderResources", truncFlag = false, transferData = false });
@@ -175,8 +189,8 @@ namespace EFDataTransfer
 
                 transferrer.SetBasePriceAndInactive();
 
-                /////// Nytt 2015-11-13
                 transferrer.SetAdminFees();
+                transferrer.ConvertDuplicateServicesToExtrasOnCleaningObjectsAndSubscriptions();
             }
             catch (Exception ex)
             {
@@ -184,10 +198,10 @@ namespace EFDataTransfer
                 ErrorLogger.PostError(errorMessage);
                 Console.WriteLine(errorMessage);
             }
-
+            finally { 
             Console.WriteLine("Done. Press any key to quit.");
             Console.ReadKey();
-            ErrorLogger.WriteToFile("migration error log.txt");
+            ErrorLogger.WriteToFile("migration error log.txt");}
         }
     }
 }
